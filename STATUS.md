@@ -28,7 +28,19 @@ We're pivoting from "single-operator agent" → "multi-tenant SaaS where any use
 - **P4.2 — dashboard Connect onboarding UI** (commit `776046c`). `/console/settings/stripe` with status banner. `/api/connect/start` mints account-link; `/api/connect/return` syncs status. Server actions auth via Convex 'convex' JWT template.
 - **P4.3 — per-tenant Stripe factory in storefronts** (commit `9b51c16`). `stripeForTenant(accountId)` for checkout / deliver / success. `tenants:ownerStripeAccount` lookup. Returns 503 when owner hasn't onboarded.
 - **P5 — Connect webhook for account.updated** (commit `e7ca76e`). `/api/stripe-webhook` on dashboard. Verifies STRIPE_CONNECT_WEBHOOK_SECRET, maps `account.updated` → user row via `users:byStripeAccount`. Other Connect events (charge/refund/dispute) keep flowing through the storefront webhook.
-- **P6** — AGENTS.md cleanup, basic-auth removal, landing copy
+- **P6 — cleanup** (commit `2f7fb53`). AGENTS.md invariants #5/#8 + Shape paragraph reframed for multi-tenant SaaS + Clerk/JWT coexistence. `DASHBOARD_BASIC_AUTH` dropped from `mint-tokens.ts`. Landing copy reframed for BYOK/Connect signup.
+
+## Pivot complete (2026-05-09)
+
+All P1–P6 phases shipped. Multi-tenant SaaS topology in place: Clerk-authenticated users, BYOK keys threaded through `AsyncLocalStorage`, Stripe Standard onboarding via packages/connect, per-tenant Checkout via `stripeForTenant()`, account-status reconciliation via Connect webhook.
+
+### Smoke-test before declaring victory
+
+1. Sign up via Clerk → confirm `users` row provisions via webhook
+2. `/console/settings/keys` → save a key → re-render shows "set"
+3. `/console/settings/stripe` → "Connect Stripe" → finish hosted onboarding → return URL syncs status → banner flips to "ready to charge"
+4. (Optional) Trigger an `account.updated` from Stripe to verify the dashboard webhook updates the row
+5. Storefront checkout on a live tenant → Checkout Session created on user's connected account; success page retrieves it via `stripeForTenant`
 
 ### Pre-pivot done
 
