@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { api } from "@autoresearch/convex/api";
-import { stripe } from "@/lib/stripe";
+import { stripeForTenant } from "@/lib/stripe";
 import { convex, storefrontToken } from "@/lib/convex";
 import { verifyDeliverToken } from "@/lib/deliver-token";
 
@@ -38,10 +38,24 @@ export async function GET(req: NextRequest, ctx: RouteCtx) {
     return new NextResponse(`bad token: ${msg}`, { status: 400 });
   }
 
-  // Step 2: confirm paid.
+  // Step 2: resolve the connected account, then confirm paid.
+  const host = (req.headers.get("host") || "").toLowerCase().split(":")[0] ?? "";
+  const apexSuffix = `.${process.env["APEX_DOMAIN"] ?? ""}`;
+  const subdomain = host.endsWith(apexSuffix)
+    ? host.slice(0, -apexSuffix.length)
+    : host;
+  const owner = await convex().query(api.tenants.ownerStripeAccount, {
+    subdomain,
+  });
+  if (!owner?.accountId) {
+    return new NextResponse("tenant has no connected account", { status: 503 });
+  }
+
   let session;
   try {
-    session = await stripe().checkout.sessions.retrieve(payload.sid);
+    session = await stripeForTenant(owner.accountId).checkout.sessions.retrieve(
+      payload.sid,
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return new NextResponse(`session lookup failed: ${msg}`, { status: 502 });
@@ -59,16 +73,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx) {
     return new NextResponse("token/session mismatch", { status: 400 });
   }
 
-  // Step 3: fetch tenant by experimentId. We don't have a direct query
-  // for that; the agent stores hypothesisId per tenant and the experiment
-  // points back at the hypothesisId. For v1 we look up via host on this
-  // request (the deliver route is hosted on the same subdomain as the
-  // storefront).
-  const host = (req.headers.get("host") || "").toLowerCase().split(":")[0] ?? "";
-  const apexSuffix = `.${process.env["APEX_DOMAIN"] ?? ""}`;
-  const subdomain = host.endsWith(apexSuffix)
-    ? host.slice(0, -apexSuffix.length)
-    : host;
+  // Step 3: fetch tenant by subdomain (already resolved above).
   const tenant = (await convex().query(api.tenants.bySubdomain, {
     subdomain,
   })) as

@@ -98,6 +98,32 @@ export const setCustomDomain = mutation({
 });
 
 /**
+ * Storefront server-side: look up the connected Stripe account id for
+ * the tenant at `subdomain`. Public-ish — same surface as bySubdomain;
+ * the connected account id is not a secret (Stripe-Account headers
+ * leak it on every Checkout redirect anyway). Returns null when the
+ * tenant exists but the owner hasn't finished Stripe Connect onboarding,
+ * which the caller surfaces as a "checkout temporarily unavailable"
+ * state rather than throwing.
+ */
+export const ownerStripeAccount = query({
+  args: { subdomain: v.string() },
+  handler: async (ctx, { subdomain }) => {
+    const tenant = await ctx.db
+      .query("tenants")
+      .withIndex("by_subdomain", (q) => q.eq("subdomain", subdomain))
+      .first();
+    if (!tenant) return null;
+    const user = await ctx.db.get(tenant.userId);
+    if (!user) return null;
+    return {
+      accountId: user.stripeConnectedAccountId ?? null,
+      chargesEnabled: user.stripeChargesEnabled ?? false,
+    };
+  },
+});
+
+/**
  * Public — used by the storefront page render. No identity check; tenant
  * data is intentionally public on the storefront surface. Returns null
  * for unknown subdomains so the page can `notFound()`.

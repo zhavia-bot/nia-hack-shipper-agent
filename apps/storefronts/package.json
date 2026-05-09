@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@autoresearch/auth": "workspace:*",
+    "@autoresearch/connect": "workspace:*",
     "@autoresearch/convex": "workspace:*",
     "@autoresearch/schemas": "workspace:*",
     "@autoresearch/shared": "workspace:*",

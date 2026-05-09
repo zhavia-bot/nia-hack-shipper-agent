@@ -1,26 +1,30 @@
 import Link from "next/link";
 import { CheckCircle2, Clock, Download } from "lucide-react";
+import { api } from "@autoresearch/convex/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { stripe } from "@/lib/stripe";
+import { stripeForTenant } from "@/lib/stripe";
+import { convex } from "@/lib/convex";
 import { mintDeliverToken } from "@/lib/deliver-token";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 interface PageProps {
+  params: Promise<{ domain: string }>;
   searchParams: Promise<{ session_id?: string }>;
 }
 
-export default async function SuccessPage({ searchParams }: PageProps) {
+export default async function SuccessPage({ params, searchParams }: PageProps) {
   const { session_id } = await searchParams;
+  const { domain } = await params;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center px-6 py-12">
       {!session_id ? (
         <NoSession />
       ) : (
-        <SessionResolved sessionId={session_id} />
+        <SessionResolved sessionId={session_id} subdomain={domain} />
       )}
     </main>
   );
@@ -39,10 +43,34 @@ function NoSession() {
   );
 }
 
-async function SessionResolved({ sessionId }: { sessionId: string }) {
+async function SessionResolved({
+  sessionId,
+  subdomain,
+}: {
+  sessionId: string;
+  subdomain: string;
+}) {
+  const owner = await convex().query(api.tenants.ownerStripeAccount, {
+    subdomain,
+  });
+  if (!owner?.accountId) {
+    return (
+      <Card>
+        <CardContent className="space-y-2 p-6">
+          <h1 className="text-xl font-semibold">Could not load your purchase.</h1>
+          <p className="text-sm text-destructive">
+            Tenant has no connected Stripe account.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   let session;
   try {
-    session = await stripe().checkout.sessions.retrieve(sessionId);
+    session = await stripeForTenant(owner.accountId).checkout.sessions.retrieve(
+      sessionId,
+    );
   } catch (err) {
     return (
       <Card>

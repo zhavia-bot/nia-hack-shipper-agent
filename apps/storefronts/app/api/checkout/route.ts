@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { stripe } from "@/lib/stripe";
+import { api } from "@autoresearch/convex/api";
+import { stripeForTenant } from "@/lib/stripe";
+import { convex } from "@/lib/convex";
 import { resolveTenantByHost } from "@/lib/tenant-lookup";
 import { env } from "@/lib/env";
 
@@ -49,7 +51,17 @@ export async function POST(req: NextRequest) {
   const successUrl = `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${baseUrl}/?canceled=1`;
 
-  const session = await stripe().checkout.sessions.create({
+  const owner = await convex().query(api.tenants.ownerStripeAccount, {
+    subdomain: tenant.subdomain,
+  });
+  if (!owner?.accountId || !owner.chargesEnabled) {
+    return NextResponse.json(
+      { error: "checkout temporarily unavailable" },
+      { status: 503 },
+    );
+  }
+
+  const session = await stripeForTenant(owner.accountId).checkout.sessions.create({
     mode: "payment",
     line_items: [{ price: tenant.stripePriceId, quantity: 1 }],
     client_reference_id: tenant.experimentId,

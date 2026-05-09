@@ -1,15 +1,15 @@
 import Stripe from "stripe";
+import { forConnectedAccount } from "@autoresearch/connect";
 import { env } from "./env.js";
 
 let cached: Stripe | null = null;
 
 /**
- * Server-side Stripe client for the storefront. Same restricted key
- * the agent uses (`checkout.sessions.create`, `.retrieve`,
- * `events.list/retrieve`, `products.create`, `prices.create`).
- * The storefront only invokes the first two in practice; the rest
- * are agent-side. Restricted-key scope is the structural defense
- * against a code-path that calls anything else.
+ * Platform Stripe client — used by the webhook (signature verification,
+ * platform-level event reads) and any flow that doesn't act on a
+ * specific connected account. Per-tenant Checkout Sessions go through
+ * `stripeForTenant()` instead, which scopes the call to the tenant
+ * owner's Standard account.
  */
 export function stripe(): Stripe {
   if (cached) return cached;
@@ -18,4 +18,14 @@ export function stripe(): Stripe {
     typescript: true,
   });
   return cached;
+}
+
+/**
+ * Per-tenant Stripe client — sets `Stripe-Account: acct_*` on every
+ * call so resources land on the tenant owner's connected account.
+ * Used to mint Checkout Sessions and retrieve them on the success
+ * page.
+ */
+export function stripeForTenant(connectedAccountId: string): Stripe {
+  return forConnectedAccount(env().STRIPE_SECRET_KEY, connectedAccountId);
 }

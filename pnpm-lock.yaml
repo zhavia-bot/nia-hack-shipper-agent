@@ -173,6 +173,9 @@ importers:
       '@autoresearch/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@autoresearch/connect':
+        specifier: workspace:*
+        version: link:../../packages/connect
       '@autoresearch/convex':
         specifier: workspace:*
         version: link:../../convex
