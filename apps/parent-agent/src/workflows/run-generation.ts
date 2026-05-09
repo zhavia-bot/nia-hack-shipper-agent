@@ -7,7 +7,7 @@ import {
 } from "@autoresearch/schemas";
 import { createLogger } from "@autoresearch/shared";
 import { propose } from "../propose.js";
-import { runChild } from "../child.js";
+import { runHypothesis } from "./run-hypothesis.js";
 import { selectAndClassify, type ChildOutcome } from "../select.js";
 import { distillLessonsForGeneration } from "../lessons.js";
 import { killSwitchTripped } from "../budget.js";
@@ -72,7 +72,7 @@ export async function runGeneration(actingUserId: string): Promise<{
     log.info("fan-out children", { generation, count: hypotheses.length });
 
     const settled = await Promise.allSettled(
-      hypotheses.map((h) => runChild(h)),
+      hypotheses.map((h) => runHypothesis(h)),
     );
 
     const outcomes: ChildOutcome[] = settled.map((o, i) =>
