@@ -15,6 +15,7 @@ import { convexClient } from "../../tools/convex-client.js";
 import { agentBrowser } from "../../tools/agent-browser.js";
 import { generateJson, MODEL_SONNET } from "../../tools/llm.js";
 import { persistImageToConvex } from "../../tools/storage.js";
+import { generateImage, type ImagePurpose } from "../../tools/images.js";
 import {
   loadRunKeys,
   withRunContext,
@@ -194,6 +195,81 @@ export async function persistScrapedImages(
     return {
       productSource: { ...productSource, scrapedImageStorageIds: storageIds },
     };
+  });
+}
+
+/**
+ * Generate three ad creatives for this hypothesis via AI Gateway
+ * (FLUX 2 primary, Gemini 3 Pro Image fallback) and persist each to
+ * Convex File Storage. Returns the resulting storage IDs, ready to
+ * fold into hypothesis.adCreativeStorageIds before shipTenant runs.
+ *
+ * Image-gen happens text-to-image — FLUX 2 doesn't take a reference
+ * image through the ai SDK's experimental_generateImage surface, so we
+ * lean on the scouted product's title + the hypothesis copy to build
+ * the prompts. The three shots (hero, lifestyle, cover) cover the
+ * usual TikTok-Shop placements: PDP hero, in-context lifestyle, and
+ * square ad thumbnail.
+ *
+ * Each generation reports its USD cost into the budget reservation
+ * before returning — this is real spend, even at FLUX Flex prices,
+ * and must be visible to the watchdog.
+ */
+export async function generateAdCreatives(
+  h: Hypothesis,
+  productSource: ProductSource,
+  reservationId: string,
+): Promise<{ adCreativeStorageIds: string[] }> {
+  return withUserCtx(h.actingUserId, async () => {
+    const baseSubject = `${productSource.originalTitle}, a ${h.bucket.niche} product`;
+    const shots: {
+      purpose: ImagePurpose;
+      prompt: string;
+      size: "1024x1024" | "1024x1536" | "1536x1024" | "2048x2048";
+    }[] = [
+      {
+        purpose: "hero",
+        size: "1024x1536",
+        prompt: `Clean studio product photo: ${baseSubject}. White seamless background, soft directional lighting from upper-left, faint reflection on glossy surface, no text, no watermarks, no human hands. The product is centered and crisp. Tone: premium TikTok Shop listing.`,
+      },
+      {
+        purpose: "ad_background",
+        size: "1536x1024",
+        prompt: `Lifestyle product photo: ${baseSubject}, used naturally in a bright modern home setting that fits the niche '${h.bucket.niche}'. Soft natural window light, shallow depth of field, no text, no logos. Composition leaves negative space on the right for ad copy.`,
+      },
+      {
+        purpose: "cover",
+        size: "1024x1024",
+        prompt: `Square ad thumbnail: ${baseSubject}. Eye-catching, high-contrast, color palette pulled from the product itself. No text or human faces. Suitable for a TikTok Shop ad placement at small sizes — keep silhouette legible.`,
+      },
+    ];
+
+    const settled = await Promise.allSettled(
+      shots.map(async (s) => {
+        const img = await generateImage({
+          reservationId,
+          prompt: s.prompt,
+          size: s.size,
+          purpose: s.purpose,
+        });
+        // generateImage returns a data URL; persistImageToConvex fetches
+        // it and PUTs the bytes — fetch() understands data URLs natively.
+        const { storageId } = await persistImageToConvex({
+          sourceUrl: img.url,
+          contentType: "image/png",
+        });
+        return storageId;
+      }),
+    );
+    const ids = settled
+      .filter((s): s is PromiseFulfilledResult<string> => s.status === "fulfilled")
+      .map((s) => s.value);
+    const failed = settled.length - ids.length;
+    if (ids.length === 0) {
+      throw new Error("generateAdCreatives: every shot failed");
+    }
+    log.info("ad creatives generated", { kept: ids.length, failed });
+    return { adCreativeStorageIds: ids };
   });
 }
 

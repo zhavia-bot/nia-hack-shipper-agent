@@ -8,6 +8,7 @@ import {
   setupExperiment,
   scoutProductSource,
   persistScrapedImages,
+  generateAdCreatives,
   shipTenant,
   kickTraffic,
   measureAndFinalize,
@@ -45,10 +46,21 @@ export async function runHypothesis(h: Hypothesis): Promise<ChildResult> {
     // P8.6: scout a real Temu/Alibaba/1688 product matching the bucket.
     // P8.7: download the scouted images into Convex File Storage so the
     // storefront and image-gen step have permanent URLs to work with.
-    // The LLM proposal never owns productSource — it's filled here.
+    // P8.8: re-skin the scouted photos into ad creatives via FLUX 2.
+    // The LLM proposal never owns productSource or adCreativeStorageIds —
+    // they're filled here, then folded into hWithSource for downstream.
     const scout = await scoutProductSource(h);
     const persisted = await persistScrapedImages(h, scout.productSource);
-    const hWithSource: Hypothesis = { ...h, productSource: persisted.productSource };
+    const creatives = await generateAdCreatives(
+      h,
+      persisted.productSource,
+      reservationId,
+    );
+    const hWithSource: Hypothesis = {
+      ...h,
+      productSource: persisted.productSource,
+      adCreativeStorageIds: creatives.adCreativeStorageIds,
+    };
 
     const ship = await shipTenant(hWithSource, experimentId);
     await kickTraffic(hWithSource, experimentId, reservationId, ship.subdomain);
