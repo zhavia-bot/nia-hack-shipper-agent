@@ -193,6 +193,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.6(react@19.2.6)
+      resend:
+        specifier: ^4.0.0
+        version: 4.8.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       stripe:
         specifier: ^18.0.0
         version: 18.5.0(@types/node@24.12.3)

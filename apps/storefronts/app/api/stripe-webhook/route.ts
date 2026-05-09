@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type Stripe from "stripe";
+import { Resend } from "resend";
 import { api } from "@autoresearch/convex/api";
 import { convex, storefrontToken } from "@/lib/convex";
-import { stripe } from "@/lib/stripe";
+import { stripe, stripeForTenant } from "@/lib/stripe";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -86,6 +87,21 @@ export async function POST(req: NextRequest) {
             tenantSubdomain,
             paymentStatus: s.payment_status,
           });
+          // P8.10: demo-safe settlement — every paid order auto-refunds
+          // with an apology email. We never actually fulfill (no inventory).
+          // Errors are logged to auditLog and never thrown so the webhook
+          // ack stays clean and Stripe doesn't retry the ledger insert.
+          await settleDemoOrder(s, tenantSubdomain, event.id, experimentId).catch(
+            async (err) => {
+              await cx.mutation(api.auditLog.record, {
+                token,
+                kind: "stripe.demo_settlement_failed",
+                stripeEventId: event.id,
+                experimentId,
+                payload: { msg: err instanceof Error ? err.message : String(err) },
+              });
+            },
+          );
         } else {
           // Diagnostic-only path per stack.md §4.4.3.
           await cx.mutation(api.auditLog.record, {
@@ -212,4 +228,117 @@ export async function POST(req: NextRequest) {
 
 function centsToUsd(cents: number): number {
   return Math.round(cents) / 100;
+}
+
+/**
+ * P8.10 demo settlement: refund the just-completed Checkout Session via
+ * the connected account, then email the customer a short apology that
+ * names the bot, links to the originally-listed product, and confirms
+ * the refund timeline. We don't fulfill any order — the agent has no
+ * inventory and never will. The whole point of the demo is the upstream
+ * ROAS signal, not the order itself.
+ *
+ * Side-effects we keep tight:
+ *   - Refund only when payment_intent is present (the typical case for
+ *     a paid Checkout Session). Skip with an audit row otherwise.
+ *   - Email only when the owner has a Resend BYOK key and we have a
+ *     customer email. Skip silently with a warn-style audit row in the
+ *     no-key case (we still refund — money first, communication second).
+ */
+async function settleDemoOrder(
+  s: Stripe.Checkout.Session,
+  tenantSubdomain: string,
+  stripeEventId: string,
+  experimentId: string,
+): Promise<void> {
+  const cx = convex();
+  const token = storefrontToken();
+  const settlement = await cx.query(api.tenants.ownerSettlementInfo, {
+    token,
+    subdomain: tenantSubdomain,
+  });
+  if (!settlement?.accountId) {
+    await cx.mutation(api.auditLog.record, {
+      token,
+      kind: "stripe.demo_settlement_no_account",
+      stripeEventId,
+      experimentId,
+      payload: { tenantSubdomain },
+    });
+    return;
+  }
+
+  // Refund — connected-account scoped via Stripe-Account header.
+  const piId =
+    typeof s.payment_intent === "string"
+      ? s.payment_intent
+      : (s.payment_intent?.id ?? null);
+  if (!piId) {
+    await cx.mutation(api.auditLog.record, {
+      token,
+      kind: "stripe.demo_settlement_no_payment_intent",
+      stripeEventId,
+      experimentId,
+      payload: { sessionId: s.id, paymentStatus: s.payment_status },
+    });
+    return;
+  }
+  const acct = stripeForTenant(settlement.accountId);
+  await acct.refunds.create({
+    payment_intent: piId,
+    metadata: {
+      reason: "autoresearch_demo_settlement",
+      experimentId,
+      tenantSubdomain,
+    },
+  });
+  await cx.mutation(api.auditLog.record, {
+    token,
+    kind: "stripe.demo_settlement_refunded",
+    stripeEventId,
+    experimentId,
+    payload: { sessionId: s.id, paymentIntentId: piId },
+  });
+
+  // Email — only if the owner has plumbed a Resend BYOK key and we have
+  // a customer email to send to. Customer email comes from
+  // customer_details (Stripe always populates this on a paid session)
+  // or customer_email (fallback when set explicitly at session create).
+  const customerEmail =
+    s.customer_details?.email ?? s.customer_email ?? null;
+  if (!settlement.resendKey || !customerEmail) {
+    await cx.mutation(api.auditLog.record, {
+      token,
+      kind: "stripe.demo_settlement_no_email",
+      stripeEventId,
+      experimentId,
+      payload: {
+        hasResendKey: !!settlement.resendKey,
+        hasCustomerEmail: !!customerEmail,
+      },
+    });
+    return;
+  }
+  const resend = new Resend(settlement.resendKey);
+  const fromAddr = settlement.fromEmail ?? "support@autoresearch.example";
+  const ownerLabel = settlement.ownerName ?? "the operator";
+  await resend.emails.send({
+    from: `Autoresearch demo <${fromAddr}>`,
+    to: [customerEmail],
+    subject: "Your order has been refunded",
+    text: [
+      `Hi — thanks for clicking through, but this storefront is part of a research demo run by an autonomous agent.`,
+      ``,
+      `Your card was charged briefly to capture a real conversion signal, and your full refund (Stripe will show it within 5-10 business days) was issued automatically before this email went out. No order will ship.`,
+      ``,
+      `If you'd like more context on what just happened, ${ownerLabel} can answer questions at the reply-to address. Sorry for the surprise.`,
+    ].join("\n"),
+  });
+  await cx.mutation(api.auditLog.record, {
+    token,
+    kind: "stripe.demo_settlement_emailed",
+    stripeEventId,
+    experimentId,
+    payload: { to: customerEmail },
+  });
 }

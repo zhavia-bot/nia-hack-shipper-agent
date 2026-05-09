@@ -134,6 +134,34 @@ export const ownerStripeAccount = query({
 });
 
 /**
+ * Service-side: settlement info for the demo refund-all path (P8.10).
+ * Returns the connected Stripe account (for the refund call) and the
+ * owner's BYOK Resend key + a sensible from-email (their account email
+ * is the fallback). Identity check: `stripe-webhook` is the only role
+ * that ever needs this; we do not expose customer-visible keys to
+ * dashboard or storefront identities.
+ */
+export const ownerSettlementInfo = query({
+  args: { token: v.string(), subdomain: v.string() },
+  handler: async (ctx, { token, subdomain }) => {
+    await requireIdentity(token, ["stripe-webhook"]);
+    const tenant = await ctx.db
+      .query("tenants")
+      .withIndex("by_subdomain", (q) => q.eq("subdomain", subdomain))
+      .first();
+    if (!tenant) return null;
+    const user = await ctx.db.get(tenant.userId);
+    if (!user) return null;
+    return {
+      accountId: user.stripeConnectedAccountId ?? null,
+      resendKey: user.resendKey ?? null,
+      fromEmail: user.email ?? null,
+      ownerName: user.name ?? null,
+    };
+  },
+});
+
+/**
  * Public — used by the storefront page render. No identity check; tenant
  * data is intentionally public on the storefront surface. Returns null
  * for unknown subdomains so the page can `notFound()`.
