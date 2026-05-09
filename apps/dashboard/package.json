@@ -12,6 +12,7 @@
     "clean": "rm -rf .next .turbo *.tsbuildinfo"
   },
   "dependencies": {
+    "@autoresearch/connect": "workspace:*",
     "@autoresearch/convex": "workspace:*",
     "@autoresearch/schemas": "workspace:*",
     "@autoresearch/shared": "workspace:*",

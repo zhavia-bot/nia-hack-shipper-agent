@@ -30,6 +30,9 @@ importers:
 
   apps/dashboard:
     dependencies:
+      '@autoresearch/connect':
+        specifier: workspace:*
+        version: link:../../packages/connect
       '@autoresearch/convex':
         specifier: workspace:*
         version: link:../../convex

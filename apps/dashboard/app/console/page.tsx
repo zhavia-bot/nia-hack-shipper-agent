@@ -39,20 +39,36 @@ export default function DashboardPage() {
             Live ops
           </h1>
         </div>
-        <Link
-          href="/console/settings/keys"
-          style={{
-            fontSize: "0.85rem",
-            color: "#444",
-            textDecoration: "none",
-            border: "1px solid #d6d3cc",
-            padding: "0.4rem 0.8rem",
-            borderRadius: 8,
-            background: "#fafaf7",
-          }}
-        >
-          API keys →
-        </Link>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <Link
+            href="/console/settings/stripe"
+            style={{
+              fontSize: "0.85rem",
+              color: "#444",
+              textDecoration: "none",
+              border: "1px solid #d6d3cc",
+              padding: "0.4rem 0.8rem",
+              borderRadius: 8,
+              background: "#fafaf7",
+            }}
+          >
+            Stripe →
+          </Link>
+          <Link
+            href="/console/settings/keys"
+            style={{
+              fontSize: "0.85rem",
+              color: "#444",
+              textDecoration: "none",
+              border: "1px solid #d6d3cc",
+              padding: "0.4rem 0.8rem",
+              borderRadius: 8,
+              background: "#fafaf7",
+            }}
+          >
+            API keys →
+          </Link>
+        </div>
       </header>
 
       <DollarTicker />
