@@ -56,10 +56,19 @@ Vercel-all-in pivot done. Tensorlake stub removed; durable orchestration is Verc
 
 ### Known follow-ups (out of P7)
 
-- Pre-existing TS errors in propose.ts, lessons.ts, revenue.ts, exa.ts, stripe.ts (unrelated to pivot — surface area for separate cleanup)
-- Cron schedule for `runGeneration` (vercel.json or workflow scheduled hook) — needs deployment first
-- `start(runGeneration, [actingUserId])` wiring in `/api/workflows/trigger` once the Vercel workflow plugin is enabled in the Next.js host
+- Pre-existing TS errors in propose.ts, lessons.ts, revenue.ts, llm.ts, stripe.ts (unrelated to pivot — separate cleanup pass)
+- Cron schedule for `runGeneration` (`vercel.json` `crons` entry pointing at a route that calls `start()`) — deferred for hackathon, button is sufficient
 - Encrypt BYOK keys at rest (hackathon scope: plaintext)
+
+## P7.8 — collapse parent-agent into dashboard (2026-05-09, commit `77c6903`)
+
+Why: Vercel Workflows only sees code inside the deployed Next.js host. With workflows in `apps/parent-agent/`, the dashboard couldn't `import { runGeneration } from ...` and `start()` had no function to enqueue.
+
+What moved: `apps/parent-agent/src/*` → `apps/dashboard/agent/*` (budget, revenue, propose, select, lessons, run-context, env, tools/*, workflows/*). `apps/parent-agent/` deleted.
+
+Trigger route: `/api/workflows/trigger` now does the real `start(runGeneration, [me._id])` from `workflow/api` and returns `{ runId }`. No 501 placeholder.
+
+Side fixes: exa tool moves to BYOK `getKey('exa')`. Browserbase project ID + Cloudflare zone ID read from `process.env` directly (they were dropped from the validated env schema in P7.2 because they're optional/platform-deployment specific).
 
 ## Pivot complete (2026-05-09)
 
