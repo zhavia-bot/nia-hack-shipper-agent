@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { env } from "../env.js";
+import { getKey } from "../run-context.js";
 
 /**
  * Cold email via Resend. Per `docs/stack.md` §4.6, the agent can send
@@ -8,10 +8,15 @@ import { env } from "../env.js";
  * arbitrary recipients — that's enforced by the caller assembling
  * `to:` from that table only.
  */
-let cached: Resend | null = null;
+const clients = new Map<string, Resend>();
 function client(): Resend {
-  if (!cached) cached = new Resend(env().RESEND_API_KEY);
-  return cached;
+  const key = getKey("resend");
+  let c = clients.get(key);
+  if (!c) {
+    c = new Resend(key);
+    clients.set(key, c);
+  }
+  return c;
 }
 
 export interface SendArgs {

@@ -23,6 +23,9 @@ export type TrafficPlan = z.infer<typeof TrafficPlanSchema>;
 
 export const HypothesisSchema = z.object({
   id: z.string(),
+  // Convex Id<"users"> for the human whose BYOK keys + Stripe Connect
+  // account this run uses. Required since the multi-tenant pivot.
+  actingUserId: z.string().min(1),
   generation: z.number().int().nonnegative(),
   parentId: z.string().nullable(),
   bucket: BucketSchema,

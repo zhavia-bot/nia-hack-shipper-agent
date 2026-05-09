@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 import { fal } from "@fal-ai/client";
 import { createLogger } from "@autoresearch/shared";
-import { env } from "../env.js";
 import { reportSpend } from "../budget.js";
+import { getKey } from "../run-context.js";
 
 const log = createLogger("parent-agent.images");
 
@@ -13,17 +13,25 @@ const log = createLogger("parent-agent.images");
 export const GPT_IMAGE_MODEL = "gpt-image-2-2026-04-21";
 export const FLUX_FAL_PATH = "fal-ai/flux-pro/v2";
 
-let openaiCached: OpenAI | null = null;
+// Per-run clients — keyed by the BYOK key so concurrent runs for
+// different users don't share a singleton.
+const openaiClients = new Map<string, OpenAI>();
 function openai(): OpenAI {
-  if (!openaiCached) openaiCached = new OpenAI({ apiKey: env().OPENAI_API_KEY });
-  return openaiCached;
+  const key = getKey("openai");
+  let client = openaiClients.get(key);
+  if (!client) {
+    client = new OpenAI({ apiKey: key });
+    openaiClients.set(key, client);
+  }
+  return client;
 }
 
-let falConfigured = false;
+let lastFalKey: string | null = null;
 function ensureFal(): void {
-  if (falConfigured) return;
-  fal.config({ credentials: env().FAL_API_KEY });
-  falConfigured = true;
+  const key = getKey("fal");
+  if (lastFalKey === key) return;
+  fal.config({ credentials: key });
+  lastFalKey = key;
 }
 
 export type ImagePurpose = "hero" | "cover" | "ad_background";

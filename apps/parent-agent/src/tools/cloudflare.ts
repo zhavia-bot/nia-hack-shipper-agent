@@ -1,4 +1,5 @@
 import { env } from "../env.js";
+import { getCloudflareToken } from "../run-context.js";
 
 /**
  * Cloudflare API helpers. Two distinct tokens (P1 #11): a DNS-edit token
@@ -26,7 +27,7 @@ async function cfFetch(token: string, path: string, init: RequestInit = {}) {
 export const cloudflare = {
   /** DNS token only. */
   async upsertCnameRecord(args: { hostname: string; target: string }) {
-    const token = env().CLOUDFLARE_DNS_TOKEN;
+    const token = getCloudflareToken("dns");
     const zone = env().CLOUDFLARE_ZONE_ID;
     return cfFetch(token, `/zones/${zone}/dns_records`, {
       method: "POST",
@@ -42,7 +43,7 @@ export const cloudflare = {
 
   /** Registrar token only — used when promoting a tenant to a custom apex. */
   async registerDomain(args: { domain: string }) {
-    const token = env().CLOUDFLARE_REGISTRAR_TOKEN;
+    const token = getCloudflareToken("registrar");
     return cfFetch(token, `/registrar/domains/${args.domain}`, {
       method: "PUT",
       body: JSON.stringify({ enabled: true, auto_renew: true }),

@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { env } from "../env.js";
+import { getKey } from "../run-context.js";
 
 /**
  * Reacher MCP — trend signal, creator data, GMV time series for niche
@@ -30,16 +30,20 @@ export interface Shop {
   region: string;
 }
 
-const clientsByShop = new Map<number, Client>();
+// Keyed by `${apiKey}:${shopId}` — concurrent runs for different users
+// must NOT share an MCP client (the api key is baked into the transport
+// headers at connect time).
+const clientsByShop = new Map<string, Client>();
 
 function authHeaders(shopId?: number): Record<string, string> {
-  const h: Record<string, string> = { "x-api-key": env().REACHER_API_KEY };
+  const h: Record<string, string> = { "x-api-key": getKey("reacher") };
   if (shopId != null) h["x-shop-id"] = String(shopId);
   return h;
 }
 
 async function ensureClientForShop(shopId: number): Promise<Client> {
-  const cached = clientsByShop.get(shopId);
+  const cacheKey = `${getKey("reacher")}:${shopId}`;
+  const cached = clientsByShop.get(cacheKey);
   if (cached) return cached;
   const transport = new StreamableHTTPClientTransport(new URL(REACHER_MCP_URL), {
     requestInit: { headers: authHeaders(shopId) },
@@ -49,7 +53,7 @@ async function ensureClientForShop(shopId: number): Promise<Client> {
     { capabilities: {} }
   );
   await c.connect(transport);
-  clientsByShop.set(shopId, c);
+  clientsByShop.set(cacheKey, c);
   return c;
 }
 

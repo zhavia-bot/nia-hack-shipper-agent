@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { env } from "../env.js";
+import { getKey } from "../run-context.js";
 
 /**
  * Nia MCP — curated corpus of "what sells online" priors. The agent
@@ -9,13 +9,15 @@ import { env } from "../env.js";
  */
 const NIA_MCP_URL = "https://api.nia.dev/mcp";
 
-let cached: Client | null = null;
+const clients = new Map<string, Client>();
 
 async function ensureClient(): Promise<Client> {
-  if (cached) return cached;
+  const key = getKey("nia");
+  const existing = clients.get(key);
+  if (existing) return existing;
   const transport = new StreamableHTTPClientTransport(new URL(NIA_MCP_URL), {
     requestInit: {
-      headers: { Authorization: `Bearer ${env().NIA_API_KEY}` },
+      headers: { Authorization: `Bearer ${key}` },
     },
   });
   const c = new Client(
@@ -23,7 +25,7 @@ async function ensureClient(): Promise<Client> {
     { capabilities: {} }
   );
   await c.connect(transport);
-  cached = c;
+  clients.set(key, c);
   return c;
 }
 

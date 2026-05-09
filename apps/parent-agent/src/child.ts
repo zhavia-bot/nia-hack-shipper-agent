@@ -7,6 +7,7 @@ import { stripe } from "./tools/stripe.js";
 import { driveTraffic } from "./tools/traffic.js";
 import { generateAndPersist } from "./tools/deliverables.js";
 import { convexClient } from "./tools/convex-client.js";
+import { loadRunKeys, withRunContext } from "./run-context.js";
 
 const log = createLogger("parent-agent.child");
 
@@ -36,89 +37,98 @@ const MEASUREMENT_WINDOW_MS = 60 * 60 * 1000; // 60 min
 export const runChild = fn(
   { name: "run-hypothesis", timeout: "90m", memoryMb: 2048 },
   async (h: Hypothesis): Promise<ChildResult> => {
-    const expId = await convexClient().mutation<string>("experiments:create", {
-      hypothesisId: h.id,
+    const keys = await loadRunKeys(h.actingUserId);
+    return withRunContext({ actingUserId: h.actingUserId, keys }, () =>
+      runChildBody(h),
+    );
+  },
+);
+
+async function runChildBody(h: Hypothesis): Promise<ChildResult> {
+  const expId = await convexClient().mutation<string>("experiments:create", {
+    actingUserId: h.actingUserId,
+    hypothesisId: h.id,
+    generation: h.generation,
+    parentId: h.parentId,
+    bucket: h.bucket,
+    rationale: h.rationale,
+  });
+
+  let reservationId: string | null = null;
+  try {
+    reservationId = await reserveBudget({
+      experimentId: expId,
       generation: h.generation,
-      parentId: h.parentId,
-      bucket: h.bucket,
-      rationale: h.rationale,
+      amountUsd: h.trafficPlan.budgetUsd,
+    });
+    log.info("budget reserved", {
+      experimentId: expId,
+      reservationId,
+      amountUsd: h.trafficPlan.budgetUsd,
     });
 
-    let reservationId: string | null = null;
-    try {
-      reservationId = await reserveBudget({
-        experimentId: expId,
-        generation: h.generation,
-        amountUsd: h.trafficPlan.budgetUsd,
-      });
-      log.info("budget reserved", {
-        experimentId: expId,
-        reservationId,
-        amountUsd: h.trafficPlan.budgetUsd,
-      });
+    const deliverable = await generateAndPersist({
+      deliverable: h.deliverable,
+      baseFilename: `tenant-${h.id.slice(0, 12)}`,
+    });
 
-      const deliverable = await generateAndPersist({
-        deliverable: h.deliverable,
-        baseFilename: `tenant-${h.id.slice(0, 12)}`,
-      });
+    const { productId, priceId } = await stripe.createProductAndPrice({
+      name: h.copy.headline,
+      description: h.copy.subhead,
+      unitAmountCents: h.price * 100,
+      currency: "usd",
+    });
 
-      const { productId, priceId } = await stripe.createProductAndPrice({
-        name: h.copy.headline,
-        description: h.copy.subhead,
-        unitAmountCents: h.price * 100,
-        currency: "usd",
-      });
+    const subdomain = `exp-${h.id.slice(0, 8).toLowerCase()}`;
+    await convexClient().mutation("tenants:create", {
+      actingUserId: h.actingUserId,
+      subdomain,
+      hypothesisId: h.id,
+      experimentId: expId,
+      generation: h.generation,
+      stripeProductId: productId,
+      stripePriceId: priceId,
+      deliverableKind: h.deliverable.kind,
+      deliverableSpec: h.deliverable.spec,
+      deliverableStorageId: deliverable.storageId,
+    });
 
-      const subdomain = `exp-${h.id.slice(0, 8).toLowerCase()}`;
-      await convexClient().mutation("tenants:create", {
-        subdomain,
-        hypothesisId: h.id,
-        experimentId: expId,
-        generation: h.generation,
-        stripeProductId: productId,
-        stripePriceId: priceId,
-        deliverableKind: h.deliverable.kind,
-        deliverableSpec: h.deliverable.spec,
-        deliverableStorageId: deliverable.storageId,
-      });
+    await driveTraffic({
+      channel: h.bucket.channel as any,
+      tenantUrl: `https://${subdomain}.${process.env["APEX_DOMAIN"]}`,
+      copy: h.copy,
+      reservationId,
+      experimentId: expId,
+      budgetUsd: h.trafficPlan.budgetUsd,
+    });
 
-      await driveTraffic({
-        channel: h.bucket.channel as any,
-        tenantUrl: `https://${subdomain}.${process.env["APEX_DOMAIN"]}`,
-        copy: h.copy,
-        reservationId,
-        experimentId: expId,
-        budgetUsd: h.trafficPlan.budgetUsd,
-      });
+    await sleep(MEASUREMENT_WINDOW_MS);
 
-      await sleep(MEASUREMENT_WINDOW_MS);
+    const metrics = await measure(expId);
+    await finalizeBudget(reservationId);
+    log.info("child finished", { experimentId: expId, ...metrics });
 
-      const metrics = await measure(expId);
-      await finalizeBudget(reservationId);
-      log.info("child finished", { experimentId: expId, ...metrics });
+    return { experimentId: expId, status: "pending", metrics };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error("child crashed", {
+      experimentId: expId,
+      reservationId,
+      err: msg,
+    });
 
-      return { experimentId: expId, status: "pending", metrics };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.error("child crashed", {
-        experimentId: expId,
-        reservationId,
-        err: msg,
-      });
-
-      if (reservationId) {
-        await releaseBudget(reservationId).catch(() => undefined);
-      }
-      await convexClient()
-        .mutation("experiments:markCrashed", { id: expId, error: msg })
-        .catch(() => undefined);
-
-      const code =
-        err instanceof BudgetError ? `BudgetError(${err.code})` : "crash";
-      return { experimentId: expId, status: "crash", error: `${code}: ${msg}` };
+    if (reservationId) {
+      await releaseBudget(reservationId).catch(() => undefined);
     }
+    await convexClient()
+      .mutation("experiments:markCrashed", { id: expId, error: msg })
+      .catch(() => undefined);
+
+    const code =
+      err instanceof BudgetError ? `BudgetError(${err.code})` : "crash";
+    return { experimentId: expId, status: "crash", error: `${code}: ${msg}` };
   }
-);
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

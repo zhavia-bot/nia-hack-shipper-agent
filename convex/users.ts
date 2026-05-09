@@ -10,6 +10,7 @@
  * fields in P4). The `requireUser` helper itself should not change.
  */
 import { v } from "convex/values";
+import { requireIdentity } from "./_lib/identity.js";
 import {
   internalMutation,
   mutation,
@@ -123,6 +124,30 @@ export const updateApiKeys = mutation({
       if (value !== undefined) (patch as Record<string, unknown>)[k] = value;
     }
     await ctx.db.patch(user._id, patch);
+  },
+});
+
+/**
+ * Agent-only — fetch a specific user's BYOK keys for a run.
+ * Called from the parent-agent at run start to populate the
+ * AsyncLocalStorage run context. Never exposed to dashboards or
+ * storefronts; the agent identity is the only role allowed in.
+ */
+export const keysForUser = query({
+  args: { token: v.string(), userId: v.id("users") },
+  handler: async (ctx, { token, userId }) => {
+    await requireIdentity(token, ["agent"]);
+    const u = await ctx.db.get(userId);
+    if (!u) throw new Error(`user not found: ${userId}`);
+    return {
+      openai: u.openaiKey ?? null,
+      browserbase: u.browserbaseKey ?? null,
+      resend: u.resendKey ?? null,
+      reacher: u.reacherKey ?? null,
+      nia: u.niaKey ?? null,
+      fal: u.falKey ?? null,
+      cloudflare: u.cloudflareKey ?? null,
+    };
   },
 });
 

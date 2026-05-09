@@ -1,4 +1,5 @@
 import { env } from "../env.js";
+import { getKey } from "../run-context.js";
 
 /**
  * Browserbase — UI-only actions (signup flows, posts on platforms
@@ -13,7 +14,7 @@ const BB_API = "https://www.browserbase.com/v1";
 
 async function bbFetch(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
-  headers.set("X-BB-API-Key", env().BROWSERBASE_API_KEY);
+  headers.set("X-BB-API-Key", getKey("browserbase"));
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
