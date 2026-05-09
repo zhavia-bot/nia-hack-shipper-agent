@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "composite": true,
+    "verbatimModuleSyntax": false
+  },
+  "references": [
+    { "path": "../../packages/schemas" },
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/bandit" },
+    { "path": "../../packages/deliverables" },
+    { "path": "../../packages/prompts" },
+    { "path": "../../packages/auth" }
+  ],
+  "include": ["src/**/*.ts"]
+}

@@ -12,12 +12,12 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 7. Step 6 — `packages/prompts`
 8. Step 7 — `packages/auth`
 9. Step 8 — `convex/` (schema, tenants, experiments, ledger [IMMUTABLE], lessons, budget [IMMUTABLE], auditLog, system, http; vendored identity check)
+10. Step 9 — `apps/parent-agent` (orchestrator, child, propose/select/lessons, all tools, program.md)
 
 ## In progress
-- Step 9: apps/parent-agent (+ program.md)
+- Step 10: apps/storefronts (Next.js 16 multi-tenant)
 
 ## Next
-10. apps/storefronts
 11. apps/dashboard
 
 ## Notes

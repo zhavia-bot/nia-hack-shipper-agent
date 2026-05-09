@@ -1,0 +1,43 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { env } from "../env.js";
+
+/**
+ * Nia MCP — curated corpus of "what sells online" priors. The agent
+ * grounds hypotheses in this corpus instead of GPT confabulations.
+ * Index ~1000 documents at start of run (one-time setup).
+ */
+const NIA_MCP_URL = "https://api.nia.dev/mcp";
+
+let cached: Client | null = null;
+
+async function ensureClient(): Promise<Client> {
+  if (cached) return cached;
+  const transport = new StreamableHTTPClientTransport(new URL(NIA_MCP_URL), {
+    requestInit: {
+      headers: { Authorization: `Bearer ${env().NIA_API_KEY}` },
+    },
+  });
+  const c = new Client(
+    { name: "autoresearch-parent-agent", version: "0.0.0" },
+    { capabilities: {} }
+  );
+  await c.connect(transport);
+  cached = c;
+  return c;
+}
+
+export const nia = {
+  async search(query: string, limit = 10) {
+    const c = await ensureClient();
+    return c.callTool({
+      name: "search",
+      arguments: { query, limit },
+    });
+  },
+
+  async listTools() {
+    const c = await ensureClient();
+    return c.listTools();
+  },
+};
