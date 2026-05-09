@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { DollarTicker } from "@/components/dollar-ticker";
+import { LiveRevenueTicker } from "@/components/live-revenue-ticker";
 
 const stack = [
   "Vercel Workflows",
@@ -173,7 +173,7 @@ export default function LandingPage() {
         </div>
 
         <div className="mt-14">
-          <DollarTicker />
+          <LiveRevenueTicker />
         </div>
       </section>
 

@@ -12,6 +12,60 @@ import { requireIdentity } from "./_lib/identity.js";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * P8.14 — anonymized "agent network" ticker for the public landing
+ * page. Rolls up across every user without exposing per-user
+ * attribution. Public on purpose: no token, no Clerk identity. The
+ * point is a "people are running this RIGHT NOW" social-proof signal
+ * for the hackathon demo, not a leak channel — only sums and counts
+ * leave Convex, never row-level data.
+ *
+ * Reads `ledgerEvents` (capped at 5000 rows so the demo doesn't pay
+ * for a full table scan as volume grows; the rollup is approximate
+ * for older history but exact for the most recent activity, which is
+ * what the ticker actually shows).
+ */
+export const globalAnonStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const events = await ctx.db
+      .query("ledgerEvents")
+      .withIndex("by_timestamp")
+      .order("desc")
+      .take(5000);
+    let charges = 0;
+    let refunds = 0;
+    let chargeCount = 0;
+    let lastChargeAt: number | null = null;
+    for (const e of events) {
+      if (e.type === "charge") {
+        charges += e.amountUsd;
+        chargeCount += 1;
+        if (lastChargeAt == null || e.timestamp > lastChargeAt) {
+          lastChargeAt = e.timestamp;
+        }
+      } else if (e.type === "refund") {
+        // Refund amounts are stored negative in ledgerEvents; flip for a
+        // clean "$ refunded" display.
+        refunds += -e.amountUsd;
+      }
+    }
+    const liveTenants = await ctx.db
+      .query("tenants")
+      .withIndex("by_status", (q) => q.eq("status", "live"))
+      .collect();
+    return {
+      grossChargedUsd: charges,
+      refundedUsd: refunds,
+      netSettledUsd: charges - refunds,
+      transactions: chargeCount,
+      liveTenants: liveTenants.length,
+      lastChargeAt,
+      asOf: Date.now(),
+    };
+  },
+});
+
+/**
  * The single most important metric. Sum of all `ledgerEvents.amountUsd`
  * — equals net $ in Stripe balance once webhooks have caught up.
  */
