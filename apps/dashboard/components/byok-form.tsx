@@ -8,7 +8,6 @@ type KeyField = {
   key: keyof typeof FIELDS;
   arg:
     | "aiGatewayKey"
-    | "exaKey"
     | "resendKey"
     | "reacherKey"
     | "niaKey";
@@ -21,11 +20,6 @@ const FIELDS = {
     arg: "aiGatewayKey",
     label: "Vercel AI Gateway",
     hint: "vck_... — single key routes Anthropic + OpenAI + FLUX text/image",
-  },
-  exa: {
-    arg: "exaKey",
-    label: "Exa",
-    hint: "Web search sense organ for niche discovery",
   },
   resend: {
     arg: "resendKey",

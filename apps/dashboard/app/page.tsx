@@ -35,7 +35,6 @@ const stack = [
   "Clerk",
   "Reacher",
   "Nia",
-  "Exa",
   "Vercel Sandbox",
   "Resend",
   "FLUX 2",
@@ -47,7 +46,7 @@ const phases = [
     icon: FlaskConical,
     title: "Hypothesize",
     body:
-      "Parent agent samples niches via Reacher + Exa, scores them with a contextual bandit, and writes one experiment per child. Eight children run in parallel.",
+      "Parent agent samples trending TikTok-Shop niches via Reacher and grounds them with Nia deep-research, scores them with a contextual bandit, and writes one experiment per child. Eight children run in parallel.",
   },
   {
     icon: Rocket,

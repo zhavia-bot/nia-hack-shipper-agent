@@ -39,7 +39,6 @@ export default defineSchema({
     // aiGatewayKey routes all LLM + image gen via Vercel AI Gateway. There
     // is no separate OpenAI / fal key — the Gateway covers both.
     aiGatewayKey: v.optional(v.string()),
-    exaKey: v.optional(v.string()),
     resendKey: v.optional(v.string()),
     reacherKey: v.optional(v.string()),
     niaKey: v.optional(v.string()),

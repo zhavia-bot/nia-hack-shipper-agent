@@ -18,7 +18,6 @@ import { convexClient } from "./tools/convex-client.js";
  */
 export interface RunKeys {
   aiGateway: string | null;
-  exa: string | null;
   resend: string | null;
   reacher: string | null;
   nia: string | null;

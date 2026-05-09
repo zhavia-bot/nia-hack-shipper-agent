@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { LessonSchema, type Lesson } from "@autoresearch/schemas";
+import {
+  LessonSchema,
+  type Bucket,
+  type Lesson,
+} from "@autoresearch/schemas";
 import { distillLessons, render } from "@autoresearch/prompts";
 import { createLogger } from "@autoresearch/shared";
 import { generateJson, MODEL_SONNET } from "./tools/llm.js";
@@ -27,7 +31,7 @@ export async function distillLessonsForGeneration(generation: number): Promise<{
   }) as Array<{
     _id: string;
     hypothesisId: string;
-    bucket: { niche: string; category: string; priceTier: string; channel: string };
+    bucket: Bucket;
     spendUsd: number;
     revenueUsd: number;
     visitors: number;
