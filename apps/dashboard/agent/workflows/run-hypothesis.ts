@@ -7,6 +7,7 @@ import type { MeasuredOutcome } from "../revenue.js";
 import {
   setupExperiment,
   scoutProductSource,
+  persistScrapedImages,
   shipTenant,
   kickTraffic,
   measureAndFinalize,
@@ -41,12 +42,13 @@ export async function runHypothesis(h: Hypothesis): Promise<ChildResult> {
     experimentId = setup.experimentId;
     reservationId = setup.reservationId;
 
-    // P8.6: scout a real Temu/Alibaba/1688 product matching the bucket
-    // before we ship anything. The scouted source is then folded into a
-    // new hypothesis object passed downstream — the LLM proposal does NOT
-    // own productSource (it's set to null at proposal time, P8.1).
+    // P8.6: scout a real Temu/Alibaba/1688 product matching the bucket.
+    // P8.7: download the scouted images into Convex File Storage so the
+    // storefront and image-gen step have permanent URLs to work with.
+    // The LLM proposal never owns productSource — it's filled here.
     const scout = await scoutProductSource(h);
-    const hWithSource: Hypothesis = { ...h, productSource: scout.productSource };
+    const persisted = await persistScrapedImages(h, scout.productSource);
+    const hWithSource: Hypothesis = { ...h, productSource: persisted.productSource };
 
     const ship = await shipTenant(hWithSource, experimentId);
     await kickTraffic(hWithSource, experimentId, reservationId, ship.subdomain);

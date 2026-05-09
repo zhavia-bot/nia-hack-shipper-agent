@@ -14,6 +14,7 @@ import { driveTraffic } from "../../tools/traffic.js";
 import { convexClient } from "../../tools/convex-client.js";
 import { agentBrowser } from "../../tools/agent-browser.js";
 import { generateJson, MODEL_SONNET } from "../../tools/llm.js";
+import { persistImageToConvex } from "../../tools/storage.js";
 import {
   loadRunKeys,
   withRunContext,
@@ -142,6 +143,57 @@ export async function scoutProductSource(
       imgCandidates: picked.candidateImageUrls.length,
     });
     return { productSource };
+  });
+}
+
+/**
+ * Download the scout's raw image URLs and stash them in Convex File
+ * Storage so the storefront and the image-gen step (P8.8) can rely on
+ * permanent URLs instead of provider-side ones that decay.
+ *
+ * Per-image failures are skipped, not fatal: the scout often returns
+ * thumbnails alongside primary photos, and a few may 404 by the time
+ * we fetch. We require at least one image to land — if all fail we
+ * throw, since downstream image-gen has nothing to re-skin.
+ *
+ * Best-effort detection of content-type via the response header, with
+ * a `image/jpeg` fallback (matches what Temu actually serves).
+ */
+export async function persistScrapedImages(
+  h: Hypothesis,
+  productSource: ProductSource,
+): Promise<{ productSource: ProductSource }> {
+  return withUserCtx(h.actingUserId, async () => {
+    const candidateUrls = productSource.scrapedImageStorageIds.slice(0, 5);
+    const settled = await Promise.allSettled(
+      candidateUrls.map(async (sourceUrl) => {
+        const head = await fetch(sourceUrl, { method: "HEAD" }).catch(() => null);
+        const contentType =
+          head?.headers.get("content-type") ?? "image/jpeg";
+        const { storageId } = await persistImageToConvex({
+          sourceUrl,
+          contentType,
+        });
+        return storageId;
+      }),
+    );
+    const storageIds = settled
+      .filter((s): s is PromiseFulfilledResult<string> => s.status === "fulfilled")
+      .map((s) => s.value);
+    const failed = settled.length - storageIds.length;
+    if (storageIds.length === 0) {
+      throw new Error(
+        `persistScrapedImages: all ${candidateUrls.length} downloads failed`,
+      );
+    }
+    log.info("scraped images persisted", {
+      kept: storageIds.length,
+      failed,
+      total: candidateUrls.length,
+    });
+    return {
+      productSource: { ...productSource, scrapedImageStorageIds: storageIds },
+    };
   });
 }
 
