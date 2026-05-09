@@ -122,6 +122,7 @@ sandboxes; production builds via `tsc` or `esbuild` per app.
 │   │   │   │   ├── exa.ts
 │   │   │   │   ├── browserbase.ts
 │   │   │   │   ├── resend.ts
+│   │   │   │   ├── images.ts          # gpt-image-2 primary, FLUX 2 Pro fallback
 │   │   │   │   └── deliverables/      # PDF/JSON/MD/ZIP generators
 │   │   │   └── program.md             # the agent's "skill"
 │   │   ├── tensorlake.config.ts
@@ -207,7 +208,8 @@ Why separate parent and children:
 
 ### 4.2 Convex — state of the world
 
-**Source of truth for**: tenants, experiments, ledger events, lessons, budget singleton.
+**Source of truth for**: tenants, experiments, ledger events, lessons, budget
+singleton, budget reservations.
 
 **Why Convex over Postgres + Redis + websockets:**
 - Realtime subs are first-class — the dashboard becomes a 30-line component.
@@ -217,6 +219,28 @@ Why separate parent and children:
 
 **Trade-off**: vendor lock-in. Mitigated by keeping schemas in
 `packages/schemas` (Zod) — Convex tables are projections of those.
+
+#### 4.2.1 Capability model — caller-identity ACLs (NOT deploy-key scopes)
+
+Convex deploy keys deploy code; they do not enforce row-level runtime ACLs.
+Capabilities must be enforced **inside each Convex function** based on the
+caller's identity. We use distinct service identities, each with its own
+short-lived auth token issued at boot:
+
+| Identity | Allowed mutations | Forbidden |
+|---|---|---|
+| `agent` (parent + children) | `tenants:create/pause/kill`, `experiments:create/update`, `lessons:write`, `budget:reserve/release` | `budgetState:*`, `ledgerEvents:insert`, `auditLog:insert` (insert is by other identities) |
+| `stripe-webhook` | `ledgerEvents:insert` (with `payment_status` precondition), `experiments:updateRevenue` | everything else |
+| `refund-worker` | `ledgerEvents:insertRefund`, `experiments:markRefunded` | everything else |
+| `dashboard` | read-only on all tables | all writes |
+| `admin` (human) | full | none — used for migrations and `budgetState` edits |
+
+Implementation: each function begins with
+`const id = await requireIdentity(ctx, ["agent"])`. Identities are issued via
+the Convex auth integration (Clerk or a small custom JWT issuer). The token
+the agent sandbox holds is **scoped to `agent`**; it physically cannot mint
+mutations from a privileged role. This is the layer reviewer P0 #4 flagged
+as missing — deploy keys do not give us this.
 
 ### 4.3 Vercel — public traffic surface
 
@@ -242,23 +266,75 @@ Why separate parent and children:
 
 ### 4.4 Stripe — money rails
 
-**Surface 1 only** for v1: classic Payment Links via Agent Toolkit. ACP and MPP
+**Surface 1 only** for v1: Stripe Checkout via Agent Toolkit. ACP and MPP
 are out of scope for now (see `docs/runbook.md` for upgrade path).
 
-**Restricted key scope** (`rk_test_*` then `rk_live_*`):
-- `paymentLinks.create`
+#### 4.4.1 Why Checkout Sessions, not Payment Links
+
+Reviewer P0 #5 surfaced a real attribution and accounting bug. We resolve it
+by avoiding the Payment Link primitive entirely:
+
+- **Payment Links are reusable**, so a single click → completion does not
+  uniquely identify *which experiment* drove the conversion. Multiple
+  experiments could share a Payment Link by accident, and per-click tagging
+  is awkward.
+- **Checkout Sessions** are created per click, and accept a
+  `client_reference_id` (which we set to `experimentId`) plus a `metadata`
+  object (`{ experimentId, hypothesisId, tenantSubdomain, generation }`).
+  Attribution is exact.
+
+Flow:
+1. Agent (child function) creates `Product` + `Price` only — no Payment Link.
+2. Tenant row stores `stripeProductId` and `stripePriceId`.
+3. Storefront `/api/checkout` route, on customer click, creates a Checkout
+   Session with the price ID, `client_reference_id = experimentId`, and
+   metadata. Returns the Session URL; client redirects.
+4. Webhook receives session events keyed by that experiment ID.
+
+#### 4.4.2 Restricted key scope (`rk_test_*` then `rk_live_*`)
+
+Agent's key:
 - `products.create`
 - `prices.create`
-- `checkout.read`
-- `events.read` (for poll-based reconciliation if webhook is delayed)
-- Nothing else. Specifically NOT: `paymentLinks.update`, `products.update`,
-  refunds, transfers, customers.write.
+- `checkout.sessions.create` *(used by storefront checkout route, see §10.1
+  for token isolation)*
+- `checkout.sessions.read`
+- `events.read` (for reconciliation when webhook delayed)
+- Nothing else. Specifically NOT: refunds, transfers, customers.write,
+  any `*.update` or `*.delete` actions.
 
-**Webhook setup**:
-- Endpoint: `https://storefronts.<domain>/api/stripe-webhook`
-- Events: `checkout.session.completed`, `charge.refunded`, `payment_intent.succeeded`
-- Signing secret in Vercel env, NOT in agent sandbox (the agent never sees
-  the raw webhook stream — it only reads digested ledger events from Convex).
+Note from reviewer P1 #6: Stripe restricted keys are resource-level, not
+action-level. They give us a blast-radius limit, not enforcement of
+"create-only." The hard enforcement of "no updates, no refunds" is in our
+**Stripe action allowlist** layer (§10.2) — a fixed list of permitted
+`stripe.*` method calls validated outside the LLM prompt.
+
+#### 4.4.3 Revenue-recognition rule (P0 #5 fix)
+
+Revenue is **only** booked into `ledgerEvents` when:
+
+1. The webhook event is `checkout.session.completed`
+   AND `session.payment_status === "paid"`, OR
+2. The webhook event is `checkout.session.async_payment_succeeded`.
+
+A `checkout.session.completed` event with `payment_status === "unpaid"` or
+`"no_payment_required"` is logged to `auditLog` for traceability but does
+**not** create a `ledgerEvent`. Async payment failures
+(`checkout.session.async_payment_failed`) mark the experiment with a
+`asyncFailure` flag for selection logic to discount.
+
+#### 4.4.4 Webhook setup
+
+- Endpoint: `https://storefronts.<apex>/api/stripe-webhook`
+- Events subscribed:
+  - `checkout.session.completed`
+  - `checkout.session.async_payment_succeeded`
+  - `checkout.session.async_payment_failed`
+  - `charge.refunded`
+  - `charge.dispute.created`
+- Signing secret in Vercel env, **not** in agent sandbox. The agent never
+  sees the raw webhook stream — it only reads digested `ledgerEvents` from
+  Convex via the `agent` identity (read-only on `ledgerEvents`).
 
 ### 4.5 External sense organs
 
@@ -300,6 +376,105 @@ are out of scope for now (see `docs/runbook.md` for upgrade path).
 **Cloudflare API**
 - Use: register domains, manage DNS for promoted tenants
 - Scope: token limited to `Zone:Edit` for one zone
+
+### 4.7 Image generation — `gpt-image-2` primary, FLUX 2 Pro fallback
+
+The agent generates marketing assets per hypothesis: landing-page hero images,
+digital-product cover art, and static ad creative. Video/voiceover are out of
+scope for v1 (cost ceiling and demo-window mismatch).
+
+**Primary**: OpenAI `gpt-image-2` (released 2026-04-21, replaces DALL-E 3
+which retires 2026-05-12).
+
+- Model ID: `gpt-image-2`
+- Pinned snapshot: `gpt-image-2-2026-04-21` (defaults drift; pin in code)
+- Endpoint: `client.images.generate(...)` from the official `openai` npm
+  package
+- Modalities: text → image, **and** text+image → image (edits in same model)
+- Output sizes: 1024×1024, 1024×1536, 1536×1024, up to 2048×2048 (custom
+  dimensions supported)
+- Native text rendering: strong enough that we use it for both hero images
+  and cover art with text overlays. Skip Ideogram unless it disappoints in
+  practice.
+- Cost: ~$0.04 / 1024² standard, ~$0.10–0.15 / 2K, up to ~$0.35 for complex
+  high-res prompts. Token-based underneath ($5/1M text in, $8/1M image in,
+  $30/1M image out). Batch API halves the rate.
+- Rate limit: **5 images/minute at Tier 1**, scaling to ~50 at Tier 2 and
+  250 at higher tiers. OpenAI auto-tiers on cumulative spend; expect Tier 2
+  within ~1 day of real usage.
+- Constraints: no streaming, no function calling on image endpoint, output
+  URLs expire ~1 hour (download-and-upload to our storage immediately).
+
+**Fallback**: Black Forest Labs **FLUX 2 Pro** via fal.ai
+(`@fal-ai/client`). Used when:
+- gpt-image-2 returns a content-policy refusal (its filter is strict on
+  health, finance, supplements, some apparel)
+- Tier 1 rate limit is saturated and a child is generating in parallel
+- A specific niche empirically converts better with FLUX's photoreal style
+
+Cost: ~$0.055/image, sub-10s latency. Same TS code shape as fal calls
+elsewhere.
+
+**Ad-platform safety pattern**: Meta and Google increasingly fingerprint
+pure AI imagery and reject it under "low-quality / misleading" policies.
+For ad creative specifically, the pipeline is:
+
+```
+gpt-image-2 → background-only image (no text)
+    ↓
+Bannerbear (or Placid) template API → composites
+    - logo (deterministic asset)
+    - CTA button + headline (rendered as actual text, not pixels)
+    - brand-colored frame
+    ↓
+final ad creative uploaded to Meta / Google
+```
+
+For hero images and cover art (not paid-ad surfaces), composition isn't
+needed — gpt-image-2 output goes straight to the tenant page.
+
+**Asset costs roll into the per-experiment budget reservation** (§5.7).
+Without this, an experiment can quietly burn $5+ in image generation
+*before* it ever drives traffic. The `budget:reserve` call in `runChild`
+must include an `assetBudget` field; image generations report into it via
+`budget:reportSpend({ kind: "asset_gen" })`.
+
+**Implementation shape**:
+
+```ts
+// apps/parent-agent/src/tools/images.ts
+import OpenAI from "openai";
+import { fal } from "@fal-ai/client";
+import { reportAssetSpend } from "./budget.js";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+fal.config({ credentials: process.env.FAL_API_KEY! });
+
+export async function generateImage({
+  reservationId, prompt, size = "1024x1024", purpose,
+}: GenImageArgs): Promise<{ url: string; provider: string; costUsd: number }> {
+  try {
+    const r = await openai.images.generate({
+      model: "gpt-image-2-2026-04-21",
+      prompt, n: 1, size,
+    });
+    const cost = estimateGptImageCost(size);
+    await reportAssetSpend(reservationId, cost);
+    return { url: await persistToStorage(r.data[0].url!), provider: "openai", costUsd: cost };
+  } catch (err) {
+    if (!isPolicyOrRateLimitError(err)) throw err;
+    // Fallback to FLUX 2 Pro via fal
+    const r = await fal.run("fal-ai/flux-pro/v2", { input: { prompt, image_size: size } });
+    await reportAssetSpend(reservationId, 0.055);
+    return { url: await persistToStorage(r.data.images[0].url), provider: "flux2pro", costUsd: 0.055 };
+  }
+}
+```
+
+`persistToStorage` downloads the (expiring) URL and re-uploads to a
+bucket we control (Convex file storage or a Cloudflare R2 bucket — TBD,
+see §12). Tenant rows reference our persistent URL, never OpenAI's
+expiring one.
 
 ---
 
@@ -349,8 +524,8 @@ future generations. This is a cheap correctness lever.
 defineTable({
   subdomain: v.string(),
   hypothesisId: v.string(),
-  stripePaymentLinkId: v.string(),
   stripeProductId: v.string(),
+  stripePriceId: v.string(),               // Sessions created per click against this price
   deliverableKind: v.string(),
   deliverableSpec: v.any(),                // for re-generation on demand
   customDomain: v.optional(v.string()),
@@ -360,6 +535,9 @@ defineTable({
   .index("by_hypothesis", ["hypothesisId"])
   .index("by_status", ["status"]);
 ```
+
+Note the absence of `stripePaymentLinkId`. We do not use Payment Links;
+attribution requires per-click Checkout Sessions (see §4.4.1).
 
 ### 5.3 Experiment (Convex `experiments` table — append-only-ish)
 
@@ -403,6 +581,7 @@ defineTable({
   tenantId: v.optional(v.string()),
   experimentId: v.optional(v.string()),
   stripeEventId: v.optional(v.string()),   // for idempotency
+  paymentStatus: v.optional(v.string()),   // copied from Stripe; only "paid" reaches here
   source: v.string(),                      // "stripe_webhook" | "google_ads_api" | "manual"
   timestamp: v.number(),
 }).index("by_stripe_event", ["stripeEventId"])
@@ -412,6 +591,15 @@ defineTable({
 
 Idempotency: Stripe webhook handler checks `by_stripe_event` before insert.
 Stripe replays are common.
+
+**Insert preconditions** (enforced inside `ledger:recordCharge` mutation,
+not just at the caller):
+- caller identity must be `stripe-webhook` (see §4.2.1)
+- `paymentStatus === "paid"` for `charge`-type rows
+- `stripeEventId` not already present (idempotent)
+
+A `checkout.session.completed` event with non-"paid" status does NOT produce
+a `ledgerEvent` row — it lands in `auditLog` for diagnostic visibility only.
 
 ### 5.5 Lesson (Convex `lessons` table)
 
@@ -433,7 +621,7 @@ defineTable({
 Time-decay (per AutoResearchClaw): every generation, multiply `weight` of
 all lessons by 0.92. Lessons with `weight < 0.1` get pruned.
 
-### 5.6 BudgetState (Convex `budgetState` — immutable singleton)
+### 5.6 BudgetState (Convex `budgetState` — singleton)
 
 ```ts
 defineTable({
@@ -445,13 +633,78 @@ defineTable({
 });
 ```
 
-Only updated by:
-1. A human-authored migration in `convex/budget.ts`
-2. The watchdog function (only to set `killSwitchHalt = true` — never to
-   raise limits). Watchdog logic lives in code reviewed by humans.
+Only writable by the `admin` identity (humans, via migration) or the
+`budget-watchdog` identity (which can only set `killSwitchHalt = true`,
+never raise limits — enforced inside the mutation). The `agent` identity
+cannot mutate this table at all (§4.2.1).
 
-The agent CANNOT update `budgetState`. The agent's restricted key for Convex
-(if we add one — see §10) does not include write to this table.
+### 5.7 BudgetReservation (Convex `budgetReservations` — atomic spend reservations)
+
+This is the fix for reviewer P0 #3 (race-prone budget checks). Children
+must atomically reserve from the budget *before* spending; reservations are
+released or finalized when the experiment concludes.
+
+```ts
+defineTable({
+  experimentId: v.string(),
+  generation: v.number(),
+  reservedUsd: v.number(),                 // committed at reserve time
+  spentUsd: v.number(),                    // updated as ad-spend events land
+  status: v.union(
+    v.literal("active"),                   // reserved, may still spend
+    v.literal("finalized"),                // experiment concluded; spentUsd is final
+    v.literal("released"),                 // experiment crashed before spend; reservation freed
+  ),
+  reservedAt: v.number(),
+  finalizedAt: v.optional(v.number()),
+}).index("by_experiment", ["experimentId"])
+  .index("by_generation_status", ["generation", "status"]);
+```
+
+The `budget:reserve` mutation runs as a Convex transaction:
+
+```ts
+// convex/budget.ts (excerpt — runs atomically)
+export const reserve = mutation({
+  args: { experimentId: v.string(), generation: v.number(), amountUsd: v.number() },
+  handler: async (ctx, { experimentId, generation, amountUsd }) => {
+    await requireIdentity(ctx, ["agent"]);
+
+    const state = await ctx.db.query("budgetState").first();
+    if (state.killSwitchHalt) throw new Error("HALTED");
+    if (amountUsd > state.perExperimentUsd) throw new Error("PER_EXP_CAP");
+
+    // Sum all active + finalized reservations in this generation
+    const generationCommitted = await sumActiveAndFinalized(ctx, generation);
+    if (generationCommitted + amountUsd > state.perGenerationUsd)
+      throw new Error("PER_GEN_CAP");
+
+    // Sum spent across all generations today
+    const dayCommitted = await sumDayCommitted(ctx);
+    if (dayCommitted + amountUsd > state.perDayUsd)
+      throw new Error("PER_DAY_CAP");
+
+    return await ctx.db.insert("budgetReservations", {
+      experimentId, generation,
+      reservedUsd: amountUsd, spentUsd: 0,
+      status: "active", reservedAt: Date.now(),
+    });
+  },
+});
+```
+
+Convex mutations are serializable — concurrent `reserve` calls cannot both
+pass the cap check. This is the core mechanic that closes the TOCTOU window
+the reviewer surfaced.
+
+Children call `budget:reserve` **as their first action** in `runChild`,
+before any external spend. If the reservation fails, the child aborts before
+touching Stripe, Vercel, or any ad API. On success, the child carries the
+reservation ID and reports actual spend back via `budget:reportSpend`
+(which validates `spentUsd ≤ reservedUsd` inside the mutation). At
+experiment conclusion, the child calls `budget:finalize` (sets `status =
+"finalized"`) or `budget:release` (on crash, frees unused reserved budget
+back to the cap).
 
 ---
 
@@ -487,13 +740,13 @@ export async function parent() {
       generation, lessons, liveTenants, batchSize,
     });
 
-    // Validate and budget-check before spending anything
-    for (const h of hypotheses) {
-      HypothesisSchema.parse(h);
-      await checkBudget(h.trafficPlan.budgetUsd);
-    }
+    // Schema-validate. NOTE: no aggregate budget pre-check here — that was
+    // the race-prone pattern reviewer P0 #3 surfaced. Each child reserves
+    // atomically from Convex inside runChild() (see §5.7).
+    for (const h of hypotheses) HypothesisSchema.parse(h);
 
-    // Fan-out children. Each one is its own Tensorlake sandbox.
+    // Fan-out children. Each one is its own Tensorlake sandbox. Children
+    // that fail to reserve simply abort early without spending.
     const childPromises = hypotheses.map((h) => runChild(h));
     const outcomes = await Promise.allSettled(childPromises);
 
@@ -526,39 +779,57 @@ import { convex } from "./tools/convex-client.js";
 @fn({ name: "run-hypothesis", timeout: "90m", memoryMb: 2048 })
 export async function runChild(h: Hypothesis): Promise<ExperimentResult> {
   const expId = await convex.mutation("experiments:create", { hypothesis: h });
+  let reservationId: string | null = null;
 
   try {
-    // 1. Generate deliverable artifact
+    // 1. ATOMIC budget reservation — must succeed before any external spend.
+    //    Convex serializes this; concurrent reservations cannot both pass.
+    reservationId = await convex.mutation("budget:reserve", {
+      experimentId: expId,
+      generation: h.generation,
+      amountUsd: h.trafficPlan.budgetUsd,
+    });
+
+    // 2. Generate deliverable artifact (no money spent yet)
     const deliverableUrl = await generateDeliverable(h.deliverable);
 
-    // 2. Create Stripe product + payment link
-    const { productId, paymentLinkId, paymentLinkUrl } = await stripe.createOffer({
-      name: h.copy.headline, price: h.price * 100, currency: "usd",
+    // 3. Create Stripe Product + Price (no Payment Link — sessions are
+    //    created per click by the storefront so we can attach
+    //    client_reference_id = experimentId for attribution)
+    const { productId, priceId } = await stripe.createProductAndPrice({
+      name: h.copy.headline, unitAmount: h.price * 100, currency: "usd",
     });
 
-    // 3. Create tenant row → goes live instantly via multi-tenant middleware
+    // 4. Create tenant row → goes live instantly via multi-tenant middleware
     const subdomain = `exp-${h.id.slice(0, 8)}`;
     await convex.mutation("tenants:create", {
-      subdomain, hypothesisId: h.id, stripePaymentLinkId: paymentLinkId,
-      stripeProductId: productId, deliverableKind: h.deliverable.kind,
-      deliverableSpec: h.deliverable.spec,
+      subdomain, hypothesisId: h.id,
+      stripeProductId: productId, stripePriceId: priceId,
+      deliverableKind: h.deliverable.kind, deliverableSpec: h.deliverable.spec,
     });
 
-    // 4. Drive traffic (channel-specific implementation, all bounded by budget)
+    // 5. Drive traffic. Each spend call also reports back via
+    //    budget:reportSpend (which validates spentUsd ≤ reservedUsd).
     await driveTraffic({
-      channel: h.bucket.channel, tenantUrl: `https://${subdomain}.<domain>.com`,
-      copy: h.copy, budgetUsd: h.trafficPlan.budgetUsd,
+      channel: h.bucket.channel, tenantUrl: `https://${subdomain}.<apex>`,
+      copy: h.copy, reservationId,
     });
 
-    // 5. Wait for measurement window (60 min default)
+    // 6. Wait for measurement window (60 min default)
     await sleep(60 * 60 * 1000);
 
-    // 6. Collect metrics from Convex (revenue + visitors + spend)
+    // 7. Collect metrics from Convex (only "paid" charges count — see §5.4)
     const metrics = await convex.query("experiments:metrics", { id: expId });
 
-    // 7. Tell parent — actual classification happens in selectAndClassify
+    // 8. Finalize reservation: locks spentUsd into the budget accounting
+    await convex.mutation("budget:finalize", { reservationId });
+
     return { expId, metrics, status: "pending" };
   } catch (err) {
+    // Release any unspent reserved budget so the cap isn't permanently held
+    if (reservationId) {
+      await convex.mutation("budget:release", { reservationId });
+    }
     await convex.mutation("experiments:markCrashed", { id: expId, error: String(err) });
     return { expId, status: "crash", error: String(err) };
   }
@@ -672,34 +943,120 @@ export default async function Page({ params }: { params: { domain: string } }) {
 }
 ```
 
-### 7.3 Webhook → Convex
+### 7.3 Checkout (per-click Session creation, with attribution)
+
+```ts
+// apps/storefronts/app/api/checkout/route.ts
+// Called when a customer clicks the CTA on a tenant landing page.
+// Creates a Checkout Session with experimentId baked in so the webhook
+// can attribute revenue exactly. Replaces the Payment Link approach.
+import Stripe from "stripe";
+import { ConvexHttpClient } from "convex/browser";
+
+const stripe = new Stripe(process.env.STRIPE_RESTRICTED_KEY!);
+
+export async function POST(req: Request) {
+  const { subdomain } = await req.json();
+  const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+  const tenant = await convex.query("tenants:bySubdomain", { subdomain });
+  if (!tenant || tenant.status !== "live") return new Response("not found", { status: 404 });
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [{ price: tenant.stripePriceId, quantity: 1 }],
+    client_reference_id: tenant.experimentId,        // <-- attribution
+    metadata: {
+      experimentId: tenant.experimentId,
+      hypothesisId: tenant.hypothesisId,
+      tenantSubdomain: tenant.subdomain,
+      generation: String(tenant.generation),
+    },
+    success_url: `https://${subdomain}.${process.env.APEX_DOMAIN}/thanks?s={CHECKOUT_SESSION_ID}`,
+    cancel_url:  `https://${subdomain}.${process.env.APEX_DOMAIN}/`,
+  });
+  return Response.json({ url: session.url });
+}
+```
+
+### 7.4 Webhook → Convex (with payment_status guard + async handling)
 
 ```ts
 // apps/storefronts/app/api/stripe-webhook/route.ts
-import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
+import { ConvexHttpClient } from "convex/browser";
+
+const stripe = new Stripe(process.env.STRIPE_RESTRICTED_KEY!);
 
 export async function POST(req: Request) {
   const sig = req.headers.get("stripe-signature")!;
   const body = await req.text();
   const event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+  const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
-    await convex.mutation("ledger:recordCharge", {
-      stripeEventId: event.id,
-      amountUsd: (session.amount_total ?? 0) / 100,
-      paymentLinkId: session.payment_link as string,
-    });
+  switch (event.type) {
+    case "checkout.session.completed": {
+      const s = event.data.object as Stripe.Checkout.Session;
+      // P0 #5 fix: only book revenue when actually paid. Async methods
+      // (BNPL, bank debits) can land "completed" while still pending.
+      if (s.payment_status === "paid") {
+        await convex.mutation("ledger:recordCharge", {
+          stripeEventId: event.id,
+          amountUsd: (s.amount_total ?? 0) / 100,
+          experimentId: s.client_reference_id!,    // exact attribution
+          paymentStatus: s.payment_status,
+        });
+      } else {
+        // unpaid / no_payment_required → diagnostic only, no revenue
+        await convex.mutation("auditLog:record", {
+          stripeEventId: event.id, kind: "session_completed_unpaid",
+          experimentId: s.client_reference_id ?? null,
+          paymentStatus: s.payment_status,
+        });
+      }
+      break;
+    }
+
+    case "checkout.session.async_payment_succeeded": {
+      const s = event.data.object as Stripe.Checkout.Session;
+      await convex.mutation("ledger:recordCharge", {
+        stripeEventId: event.id,
+        amountUsd: (s.amount_total ?? 0) / 100,
+        experimentId: s.client_reference_id!,
+        paymentStatus: "paid",
+      });
+      break;
+    }
+
+    case "checkout.session.async_payment_failed": {
+      const s = event.data.object as Stripe.Checkout.Session;
+      await convex.mutation("experiments:markAsyncFailure", {
+        experimentId: s.client_reference_id!,
+        stripeEventId: event.id,
+      });
+      break;
+    }
+
+    case "charge.refunded": {
+      const c = event.data.object as Stripe.Charge;
+      await convex.mutation("ledger:recordRefund", {
+        stripeEventId: event.id,
+        amountUsd: (c.amount_refunded ?? 0) / 100,
+        chargeId: c.id,
+      });
+      break;
+    }
+
+    case "charge.dispute.created":
+      await convex.mutation("experiments:markDisputed", { stripeEventId: event.id });
+      break;
   }
   return new Response("ok");
 }
 ```
 
-The Convex mutation `ledger:recordCharge` looks up the `tenant` and
-`experiment` by `paymentLinkId`, idempotently inserts a `LedgerEvent`,
-and updates the `experiment.revenueUsd` aggregate.
+The Convex mutations `ledger:recordCharge`, `ledger:recordRefund`, and
+`auditLog:record` all require the `stripe-webhook` caller identity (§4.2.1).
+Idempotency is handled inside each mutation by checking `stripeEventId`.
 
 ---
 
@@ -760,7 +1117,8 @@ One source of truth: **Doppler** project `autoresearch-money`.
 - `RESEND_API_KEY`
 - `CLOUDFLARE_API_TOKEN` (scoped to one zone)
 - `ANTHROPIC_API_KEY`
-- `OPENAI_API_KEY`
+- `OPENAI_API_KEY` (also used for `gpt-image-2`)
+- `FAL_API_KEY` (FLUX 2 Pro fallback for image generation)
 - `EXA_API_KEY`
 - `REACHER_API_KEY`
 - `NIA_API_KEY`
@@ -788,13 +1146,48 @@ non-negotiable.
 
 | Capability | Mechanism |
 |---|---|
-| Stripe scope | restricted key with explicit allowed actions, see §4.4 |
-| Refund power | NOT in agent scope. Auto-refunds in failure case 9 use a separate human-approved key held only by the post-purchase delivery worker |
-| Convex write scope | dedicated deploy key; cannot write to `budgetState` or `ledgerEvents.amount > 0` (only the webhook handler can record charges) |
+| Stripe scope | restricted key (blast-radius limit) + hard-coded action allowlist (§10.2) — RKs alone are NOT sufficient (P1 #6) |
+| Refund power | NOT in agent scope. Refund worker is a separate Vercel function with its own restricted key holding `refunds.create`; called only by Convex on `charge.dispute.created` or human-triggered refund mutations. Agent identity has no path to refund. |
+| Convex write scope | enforced **inside each Convex function** by caller identity (§4.2.1), NOT by deploy keys. The agent identity cannot mutate `budgetState`, cannot insert `ledgerEvents`, cannot mutate refund-related rows. |
+| Budget atomicity | reservation pattern in Convex (§5.7) closes the TOCTOU window — concurrent children cannot collectively exceed caps |
 | Vercel scope | one team, two projects, no billing access |
-| Cloudflare scope | one zone, no account-level access |
+| Cloudflare scope | DNS token (`Zone:DNS:Edit`, one zone) and Registrar token (account-level) are **separate** (P1 #11). DNS token cannot register domains. Registrar token has its own daily domain budget. |
 | Browserbase scope | per-session — no persistent identity |
-| Email | hard whitelist of recipient lists in Convex; agent cannot ingest free-form addresses |
+| Email | hard whitelist of recipient lists in Convex; agent cannot ingest free-form addresses; suppression/opt-out/bounce monitoring per Resend compliance (§10.4) |
+
+### 10.2 Stripe action allowlist (the actual enforcement layer)
+
+Stripe restricted keys are resource-level, not action-level. To enforce
+"no updates, no refunds, no transfers," we wrap the Agent Toolkit at boot
+with a hard-coded allowlist of permitted method names:
+
+```ts
+// apps/parent-agent/src/tools/stripe.ts
+const ALLOWED_STRIPE_ACTIONS = new Set([
+  "products.create",
+  "prices.create",
+  "checkout.sessions.create",
+  "checkout.sessions.retrieve",
+  "events.list", "events.retrieve",
+] as const);
+
+function wrapStripe(toolkit) {
+  return new Proxy(toolkit, {
+    get(target, prop) {
+      const methodPath = String(prop);
+      if (!ALLOWED_STRIPE_ACTIONS.has(methodPath))
+        throw new Error(`stripe action not allowed: ${methodPath}`);
+      return target[prop];
+    },
+  });
+}
+```
+
+This list is fixed at build time, lives in the read-only side of the repo,
+and CANNOT be expanded by the agent at runtime. Any attempt to call e.g.
+`refunds.create` throws synchronously before reaching Stripe. This is
+defense-in-depth on top of the restricted key — even if a prompt-injection
+gets the LLM to *try* a refund, the wrapper rejects it.
 
 ### 10.2 Prompt-injection containment
 
@@ -853,7 +1246,13 @@ Reacher/Nia/Exa results. Treat all as untrusted.
 
 ## 12. Open questions / known unknowns
 
-These need senior-engineer verdicts:
+> **Resolved in this revision**: P0 race-prone budget checks (§5.7
+> reservation pattern), P0 Convex permission model (§4.2.1 caller-identity
+> ACLs), P0 Stripe payment_status accounting (§4.4.3 + §7.4 webhook
+> handler with `payment_status` guard, async event handling, and
+> `client_reference_id` attribution).
+
+These remain unresolved and need senior-engineer verdicts:
 
 1. **Convex vendor lock-in.** Mitigated by Zod schemas, but a real exit costs
    weeks. Acceptable? Alternative: Postgres + Pusher/Ably for realtime.
@@ -886,6 +1285,11 @@ These need senior-engineer verdicts:
     that includes copyrighted snippets, we have an IP problem. Hard rule:
     no scraped third-party content in deliverables; only synthesized analysis
     of public info.
+13. **Image storage.** gpt-image-2 returns URLs that expire ~1 hour (§4.7);
+    FLUX outputs persist longer but no SLA. Tenants need permanent URLs.
+    Open: use Convex file storage (vendor lock-in cost), Cloudflare R2
+    (1 more service, cheaper at scale), or Vercel Blob (close to the apex,
+    higher per-GB cost)?
 12. **Hackathon framing.** This document assumes production. For demo day,
     `livemode = false` works — does that change the harness's metrics
     interpretation? (Probably not, but worth flagging.)
