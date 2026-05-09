@@ -70,6 +70,23 @@ Trigger route: `/api/workflows/trigger` now does the real `start(runGeneration, 
 
 Side fixes: exa tool moves to BYOK `getKey('exa')`. Browserbase project ID + Cloudflare zone ID read from `process.env` directly (they were dropped from the validated env schema in P7.2 because they're optional/platform-deployment specific).
 
+## P7.9 — drop Cloudflare, use `*.team.vercel.app` (2026-05-09, commit `c2d965a`)
+
+Why: For hackathon scope, Vercel issues wildcard SSL automatically on `*.<team>.vercel.app` (or `*.<user>.vercel.app` on hobby) per [community#475](https://github.com/vercel/community/discussions/475). No DNS upsert per tenant; one wildcard config in project settings covers every `exp-XXXXXX.<APEX_DOMAIN>`.
+
+What dies: `apps/dashboard/agent/tools/cloudflare.ts`, `cloudflareKey` BYOK (RunKeys + schema + users + byok-form), `getCloudflareToken()`, `cloudflare_call` audit kind, `CLOUDFLARE_*` env entries.
+
+`APEX_DOMAIN` semantic preserved — value flips from a real apex to `<team>.vercel.app`. Storefront URL pattern `https://${subdomain}.${APEX_DOMAIN}` is unchanged. The "graduate winner to a custom apex" feature (Cloudflare registrar) is a future P9, not hackathon scope.
+
+## P7.10 — drop Browserbase, run agent-browser in Vercel Sandbox (2026-05-09, commit `4df064a`)
+
+Why: `vercel-labs/agent-browser` purpose-built for AI agents (~93% token reduction vs raw Playwright via accessibility-tree snapshots) runs inside `@vercel/sandbox` microVM. Authentication uses the platform's Vercel OIDC token at runtime — no per-user BYOK key.
+
+Tradeoff: Sandbox CPU usage now bills the platform's Vercel account, not the user. Hobby includes 5 free CPU-hours/month; Pro is $0.128/hr. This is a deliberate exception to "user provides every key the agent burns" — there's no BYOK knob for a Vercel team. At scale this is a real cost, but for hackathon hobby tier it's free.
+
+What dies: `apps/dashboard/agent/tools/browserbase.ts`, `browserbaseKey` BYOK, `BROWSERBASE_*` env entries.
+What's new: `apps/dashboard/agent/tools/agent-browser.ts` wraps `Sandbox.create({ runtime: "node24" })` + `npx -y agent-browser <cmd>`. Audit kind `browserbase_session` → `sandbox_session`; budget kind `browserbase` → `sandbox`.
+
 ## Pivot complete (2026-05-09)
 
 All P1–P6 phases shipped. Multi-tenant SaaS topology in place: Clerk-authenticated users, BYOK keys threaded through `AsyncLocalStorage`, Stripe Standard onboarding via packages/connect, per-tenant Checkout via `stripeForTenant()`, account-status reconciliation via Connect webhook.
