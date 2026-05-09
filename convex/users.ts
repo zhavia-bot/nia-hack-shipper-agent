@@ -1,0 +1,148 @@
+/**
+ * Human user (Clerk-authenticated) provisioning + lookup.
+ *
+ * Provisioning is webhook-driven: Clerk fires user.created/updated/deleted
+ * at /clerk-webhook (see http.ts), which calls upsertFromClerk /
+ * deleteFromClerk here. Belt-and-suspenders client-side `current`
+ * query gates first-render until the row exists.
+ *
+ * NOT IMMUTABLE — fields will grow (BYOK keys in P3, Stripe Connect
+ * fields in P4). The `requireUser` helper itself should not change.
+ */
+import { v } from "convex/values";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type QueryCtx,
+} from "./_generated/server.js";
+import type { Doc } from "./_generated/dataModel.js";
+
+/** Look up the current Clerk-authenticated user. Null if not signed in. */
+async function getCurrentUser(ctx: QueryCtx): Promise<Doc<"users"> | null> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return null;
+  return ctx.db
+    .query("users")
+    .withIndex("by_token_identifier", (q) =>
+      q.eq("tokenIdentifier", identity.tokenIdentifier),
+    )
+    .unique();
+}
+
+/** Throw if not signed in or not yet provisioned by the Clerk webhook. */
+export async function requireUser(ctx: QueryCtx): Promise<Doc<"users">> {
+  const user = await getCurrentUser(ctx);
+  if (!user) {
+    throw new Error(
+      "Not authenticated, or user row not yet provisioned. Wait for Clerk webhook to land.",
+    );
+  }
+  return user;
+}
+
+/** Client-side query: gate first-render on `current !== null`. */
+export const current = query({
+  args: {},
+  handler: getCurrentUser,
+});
+
+/**
+ * Webhook-only: upsert by tokenIdentifier. Called from the
+ * Clerk → Convex http action after svix-verifying the payload.
+ */
+export const upsertFromClerk = internalMutation({
+  args: {
+    tokenIdentifier: v.string(),
+    clerkUserId: v.string(),
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) =>
+        q.eq("tokenIdentifier", args.tokenIdentifier),
+      )
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        email: args.email,
+        name: args.name,
+        imageUrl: args.imageUrl,
+        updatedAt: now,
+      });
+      return existing._id;
+    }
+
+    return ctx.db.insert("users", {
+      tokenIdentifier: args.tokenIdentifier,
+      clerkUserId: args.clerkUserId,
+      email: args.email,
+      name: args.name,
+      imageUrl: args.imageUrl,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const deleteFromClerk = internalMutation({
+  args: { clerkUserId: v.string() },
+  handler: async (ctx, { clerkUserId }) => {
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", clerkUserId))
+      .unique();
+    if (existing) await ctx.db.delete(existing._id);
+  },
+});
+
+/**
+ * Self-serve: update the current user's BYOK API keys. Plaintext for
+ * hackathon scope. Each field is optional — only the keys present in
+ * the args object are written.
+ */
+export const updateApiKeys = mutation({
+  args: {
+    openaiKey: v.optional(v.string()),
+    browserbaseKey: v.optional(v.string()),
+    resendKey: v.optional(v.string()),
+    reacherKey: v.optional(v.string()),
+    niaKey: v.optional(v.string()),
+    falKey: v.optional(v.string()),
+    cloudflareKey: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const patch: Partial<Doc<"users">> = { updatedAt: Date.now() };
+    for (const [k, value] of Object.entries(args)) {
+      if (value !== undefined) (patch as Record<string, unknown>)[k] = value;
+    }
+    await ctx.db.patch(user._id, patch);
+  },
+});
+
+/**
+ * Self-serve safe-summary: which keys are set, never the values.
+ * For the BYOK settings page indicator chips.
+ */
+export const apiKeyStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return null;
+    return {
+      openai: !!user.openaiKey,
+      browserbase: !!user.browserbaseKey,
+      resend: !!user.resendKey,
+      reacher: !!user.reacherKey,
+      nia: !!user.niaKey,
+      fal: !!user.falKey,
+      cloudflare: !!user.cloudflareKey,
+    };
+  },
+});

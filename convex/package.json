@@ -24,6 +24,7 @@
   "dependencies": {
     "convex": "^1.17.0",
     "jose": "^5.0.0",
+    "svix": "^1.93.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {

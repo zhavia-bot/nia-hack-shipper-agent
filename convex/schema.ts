@@ -9,6 +9,45 @@ const bucketValidator = v.object({
 });
 
 export default defineSchema({
+  /**
+   * Human users (Clerk-authenticated). Service identities (agent,
+   * stripe-webhook, etc.) are NOT users — they're caller-identity JWTs
+   * verified by `_lib/identity.ts`.
+   *
+   * Provisioned lazily by the Clerk webhook (`http.ts` /clerk-webhook).
+   * Every user-scoped mutation downstream looks up by `tokenIdentifier`
+   * (`${issuer}|${subject}`) — see `_lib/user.ts::requireUser`.
+   *
+   * BYOK keys are stored plaintext per hackathon scope. Production must
+   * encrypt at rest with a KMS-backed master key.
+   */
+  users: defineTable({
+    tokenIdentifier: v.string(),
+    clerkUserId: v.string(),
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    // BYOK API keys — plaintext, hackathon-grade. See P3.
+    openaiKey: v.optional(v.string()),
+    browserbaseKey: v.optional(v.string()),
+    resendKey: v.optional(v.string()),
+    reacherKey: v.optional(v.string()),
+    niaKey: v.optional(v.string()),
+    falKey: v.optional(v.string()),
+    cloudflareKey: v.optional(v.string()),
+    // Stripe Connect — see P4.
+    stripeConnectedAccountId: v.optional(v.string()),
+    stripeCountry: v.optional(v.string()),
+    stripeChargesEnabled: v.optional(v.boolean()),
+    stripePayoutsEnabled: v.optional(v.boolean()),
+    stripeRequirementsCurrentlyDue: v.optional(v.array(v.string())),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_token_identifier", ["tokenIdentifier"])
+    .index("by_clerk_user_id", ["clerkUserId"])
+    .index("by_email", ["email"]),
+
   tenants: defineTable({
     subdomain: v.string(),
     hypothesisId: v.string(),
