@@ -1,3 +1,4 @@
+import "./globals.css";
 import type { ReactNode } from "react";
 
 export const metadata = {
@@ -8,15 +9,7 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          fontFamily:
-            "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-          color: "#111",
-          background: "#fafaf9",
-        }}
-      >
+      <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
         {children}
       </body>
     </html>

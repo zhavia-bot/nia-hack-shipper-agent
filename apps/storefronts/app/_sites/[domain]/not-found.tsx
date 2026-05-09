@@ -1,17 +1,16 @@
+import { Card, CardContent } from "@/components/ui/card";
+
 export default function NotFound() {
   return (
-    <main
-      style={{
-        maxWidth: 640,
-        margin: "0 auto",
-        padding: "4rem 1.5rem",
-        textAlign: "center",
-      }}
-    >
-      <h1 style={{ fontSize: "2rem" }}>Not found</h1>
-      <p style={{ color: "#666" }}>
-        This page is gone, or never was. Try a different link.
-      </p>
+    <main className="mx-auto flex min-h-dvh max-w-md items-center justify-center p-6">
+      <Card>
+        <CardContent className="space-y-2 p-8 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight">Not found</h1>
+          <p className="text-sm text-muted-foreground">
+            This page is gone, or never was. Try a different link.
+          </p>
+        </CardContent>
+      </Card>
     </main>
   );
 }

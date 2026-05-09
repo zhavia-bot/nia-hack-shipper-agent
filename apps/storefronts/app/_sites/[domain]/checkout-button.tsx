@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Loader2, ShoppingBag } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function CheckoutButton({ subdomain }: { subdomain: string }) {
   const [loading, setLoading] = useState(false);
@@ -29,30 +31,25 @@ export function CheckoutButton({ subdomain }: { subdomain: string }) {
   }
 
   return (
-    <>
-      <button
-        type="button"
+    <div className="space-y-2">
+      <Button
+        size="lg"
         onClick={go}
         disabled={loading}
-        style={{
-          padding: "0.75rem 1.25rem",
-          fontSize: "1rem",
-          fontWeight: 600,
-          background: "#111",
-          color: "#fff",
-          border: "none",
-          borderRadius: 8,
-          cursor: loading ? "default" : "pointer",
-          opacity: loading ? 0.7 : 1,
-        }}
+        className="w-full text-base font-semibold"
       >
+        {loading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <ShoppingBag className="mr-2 h-4 w-4" />
+        )}
         {loading ? "Redirecting…" : "Buy now"}
-      </button>
+      </Button>
       {err && (
-        <p style={{ color: "#b00", marginTop: "0.5rem", fontSize: "0.9rem" }}>
+        <p className="text-xs text-destructive" role="alert">
           {err}
         </p>
       )}
-    </>
+    </div>
   );
 }

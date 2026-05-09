@@ -1,13 +1,15 @@
-/**
- * Bare-apex landing. The middleware doesn't rewrite the apex itself
- * (only its subdomains), so this page is what visitors to the apex
- * see. Intentionally minimal.
- */
 export default function ApexLanding() {
   return (
-    <main style={{ padding: "4rem 1.5rem", maxWidth: 720, margin: "0 auto" }}>
-      <h1 style={{ fontSize: "2rem", margin: 0 }}>Autoresearch</h1>
-      <p style={{ color: "#666" }}>Nothing to see here.</p>
+    <main className="mx-auto max-w-3xl px-6 py-24">
+      <p className="text-sm uppercase tracking-[0.18em] text-muted-foreground">
+        autoresearch
+      </p>
+      <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+        Nothing to see here.
+      </h1>
+      <p className="mt-3 text-muted-foreground">
+        Each tenant lives at its own subdomain.
+      </p>
     </main>
   );
 }

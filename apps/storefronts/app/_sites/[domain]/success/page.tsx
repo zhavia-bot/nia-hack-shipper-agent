@@ -1,3 +1,7 @@
+import Link from "next/link";
+import { CheckCircle2, Clock, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { stripe } from "@/lib/stripe";
 import { mintDeliverToken } from "@/lib/deliver-token";
 
@@ -8,45 +12,63 @@ interface PageProps {
   searchParams: Promise<{ session_id?: string }>;
 }
 
-/**
- * Stripe `success_url` redirect target. Server-renders a page with a
- * single-click download link to `/api/deliver/<token>`. The token is
- * HMAC-signed on this server; the deliver route re-confirms
- * `payment_status === "paid"` before streaming bytes.
- */
 export default async function SuccessPage({ searchParams }: PageProps) {
   const { session_id } = await searchParams;
-  if (!session_id) {
-    return (
-      <main style={containerStyle}>
-        <h1>Hmm — no session id.</h1>
-        <p>If you completed payment, please contact support.</p>
-      </main>
-    );
-  }
 
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center px-6 py-12">
+      {!session_id ? (
+        <NoSession />
+      ) : (
+        <SessionResolved sessionId={session_id} />
+      )}
+    </main>
+  );
+}
+
+function NoSession() {
+  return (
+    <Card>
+      <CardContent className="space-y-2 p-6">
+        <h1 className="text-xl font-semibold">No session id.</h1>
+        <p className="text-sm text-muted-foreground">
+          If you completed payment, please contact support.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+async function SessionResolved({ sessionId }: { sessionId: string }) {
   let session;
   try {
-    session = await stripe().checkout.sessions.retrieve(session_id);
+    session = await stripe().checkout.sessions.retrieve(sessionId);
   } catch (err) {
     return (
-      <main style={containerStyle}>
-        <h1>Could not load your purchase.</h1>
-        <p>{err instanceof Error ? err.message : String(err)}</p>
-      </main>
+      <Card>
+        <CardContent className="space-y-2 p-6">
+          <h1 className="text-xl font-semibold">Could not load your purchase.</h1>
+          <p className="text-sm text-destructive">
+            {err instanceof Error ? err.message : String(err)}
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   if (session.payment_status !== "paid") {
     return (
-      <main style={containerStyle}>
-        <h1>Payment is processing.</h1>
-        <p>
-          Status: <strong>{session.payment_status ?? "unknown"}</strong>. Refresh
-          this page in a minute or check your email — we'll send the download
-          link as soon as it clears.
-        </p>
-      </main>
+      <Card>
+        <CardContent className="space-y-3 p-6">
+          <Clock className="h-7 w-7 text-amber-500" />
+          <h1 className="text-xl font-semibold">Payment is processing.</h1>
+          <p className="text-sm text-muted-foreground">
+            Status: <strong>{session.payment_status ?? "unknown"}</strong>.
+            Refresh in a minute or check your email — we'll send the download
+            link as soon as it clears.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -54,47 +76,42 @@ export default async function SuccessPage({ searchParams }: PageProps) {
     session.client_reference_id ?? session.metadata?.["experimentId"];
   if (!experimentId) {
     return (
-      <main style={containerStyle}>
-        <h1>Receipt OK — but we lost the attribution.</h1>
-        <p>Email support with this session id: {session_id}</p>
-      </main>
+      <Card>
+        <CardContent className="space-y-2 p-6">
+          <h1 className="text-xl font-semibold">Receipt OK.</h1>
+          <p className="text-sm text-muted-foreground">
+            But we lost the attribution. Email support with this session id:{" "}
+            <code>{sessionId}</code>
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
-  const token = mintDeliverToken({
-    sessionId: session_id,
-    experimentId,
-  });
+  const token = mintDeliverToken({ sessionId, experimentId });
 
   return (
-    <main style={containerStyle}>
-      <h1>Thanks — your download is ready.</h1>
-      <p>This link is valid for 7 days, single-click download.</p>
-      <a
-        href={`/api/deliver/${encodeURIComponent(token)}`}
-        style={{
-          display: "inline-block",
-          marginTop: "1.25rem",
-          padding: "0.75rem 1.25rem",
-          background: "#111",
-          color: "#fff",
-          textDecoration: "none",
-          borderRadius: 8,
-          fontWeight: 600,
-        }}
-      >
-        Download
-      </a>
-      <p style={{ marginTop: "2rem", color: "#666", fontSize: "0.9rem" }}>
-        Refunds within 7 days, no questions asked.
-      </p>
-    </main>
+    <Card className="border-2">
+      <CardContent className="space-y-4 p-8 text-center">
+        <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Thanks — your download is ready.
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            This link is valid for 7 days. Save the file somewhere safe.
+          </p>
+        </div>
+        <Button asChild size="lg" className="w-full">
+          <Link href={`/api/deliver/${encodeURIComponent(token)}`}>
+            <Download className="mr-2 h-4 w-4" />
+            Download
+          </Link>
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Refunds within 7 days, no questions asked.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
-
-const containerStyle = {
-  maxWidth: 640,
-  margin: "0 auto",
-  padding: "3rem 1.5rem",
-  lineHeight: 1.55,
-} as const;
