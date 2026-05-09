@@ -27,7 +27,11 @@ export default defineSchema({
     email: v.optional(v.string()),
     name: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
-    // BYOK API keys — plaintext, hackathon-grade. See P3.
+    // BYOK API keys — plaintext, hackathon-grade. See P3 + P7.2.
+    // aiGatewayKey routes all LLM + most image gen via Vercel AI Gateway.
+    // openaiKey kept only for gpt-image-2 (not yet on AI Gateway).
+    aiGatewayKey: v.optional(v.string()),
+    exaKey: v.optional(v.string()),
     openaiKey: v.optional(v.string()),
     browserbaseKey: v.optional(v.string()),
     resendKey: v.optional(v.string()),

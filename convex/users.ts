@@ -170,6 +170,8 @@ export const deleteFromClerk = internalMutation({
  */
 export const updateApiKeys = mutation({
   args: {
+    aiGatewayKey: v.optional(v.string()),
+    exaKey: v.optional(v.string()),
     openaiKey: v.optional(v.string()),
     browserbaseKey: v.optional(v.string()),
     resendKey: v.optional(v.string()),
@@ -201,6 +203,8 @@ export const keysForUser = query({
     const u = await ctx.db.get(userId);
     if (!u) throw new Error(`user not found: ${userId}`);
     return {
+      aiGateway: u.aiGatewayKey ?? null,
+      exa: u.exaKey ?? null,
       openai: u.openaiKey ?? null,
       browserbase: u.browserbaseKey ?? null,
       resend: u.resendKey ?? null,
@@ -222,6 +226,8 @@ export const apiKeyStatus = query({
     const user = await getCurrentUser(ctx);
     if (!user) return null;
     return {
+      aiGateway: !!user.aiGatewayKey,
+      exa: !!user.exaKey,
       openai: !!user.openaiKey,
       browserbase: !!user.browserbaseKey,
       resend: !!user.resendKey,

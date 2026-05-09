@@ -7,6 +7,8 @@ import { useState } from "react";
 type KeyField = {
   key: keyof typeof FIELDS;
   arg:
+    | "aiGatewayKey"
+    | "exaKey"
     | "openaiKey"
     | "browserbaseKey"
     | "resendKey"
@@ -19,10 +21,20 @@ type KeyField = {
 };
 
 const FIELDS = {
+  aiGateway: {
+    arg: "aiGatewayKey",
+    label: "Vercel AI Gateway",
+    hint: "vck_... — single key routes Anthropic + OpenAI + FLUX text/image",
+  },
+  exa: {
+    arg: "exaKey",
+    label: "Exa",
+    hint: "Web search sense organ for niche discovery",
+  },
   openai: {
     arg: "openaiKey",
-    label: "OpenAI",
-    hint: "sk-... — used for gpt-image-2 and copy/research models",
+    label: "OpenAI (gpt-image-2)",
+    hint: "sk-... — only needed if AI Gateway doesn't cover gpt-image-2",
   },
   browserbase: {
     arg: "browserbaseKey",

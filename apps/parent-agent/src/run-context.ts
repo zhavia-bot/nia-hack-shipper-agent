@@ -1,23 +1,24 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { env } from "./env.js";
 import { convexClient } from "./tools/convex-client.js";
 
 /**
- * Per-run BYOK key bundle. Populated at the top of `runChild` from the
- * acting user's row, threaded into every external tool via
- * `AsyncLocalStorage`. Tools call `getKey('openai')` (or one of the
- * named helpers) instead of reading `env().OPENAI_API_KEY` directly,
- * so the same code path works for any user without a process restart.
+ * Per-run BYOK key bundle. Populated at the top of every workflow step from
+ * the acting user's row, threaded into every external tool via
+ * `AsyncLocalStorage`. Tools call `getKey('aiGateway')` (or one of the
+ * named helpers) instead of reading the env directly, so the same code path
+ * works for any user without a process restart.
  *
- * Keys outside this bundle (Stripe restricted, Vercel, Cloudflare zone
- * id, Anthropic, Exa) remain platform-level — they're not BYOK.
+ * P7.2 — every key here is BYOK; no env fallbacks. Platform-level keys
+ * (Stripe, Convex, Vercel, Apex) live in env.ts and are not part of this
+ * bundle.
  *
- * Fallback: when no run-context is set (CLI experiments, ops scripts),
- * `getKey` falls back to the env var of the same name. Production
- * agent runs MUST always set context; the fallback exists so existing
- * dev tooling doesn't break.
+ * Note: AsyncLocalStorage does NOT cross durable workflow step boundaries.
+ * In Vercel Workflows each step re-hydrates its own context via
+ * `withRunContext({...}, fn)` after calling `loadRunKeys(actingUserId)`.
  */
 export interface RunKeys {
+  aiGateway: string | null;
+  exa: string | null;
   openai: string | null;
   browserbase: string | null;
   resend: string | null;
@@ -46,10 +47,8 @@ export async function withRunContext<T>(
 }
 
 /**
- * Load BYOK keys for a user from Convex. Called once at run start.
- * Throws if the user row is missing entirely; missing individual keys
- * are returned as null and surface as `getKey` errors only when a tool
- * actually tries to use them.
+ * Load BYOK keys for a user from Convex. Called at the top of every
+ * workflow step that needs to do tool work.
  */
 export async function loadRunKeys(actingUserId: string): Promise<RunKeys> {
   const r = await convexClient().query<RunKeys>("users:keysForUser", {
@@ -58,53 +57,29 @@ export async function loadRunKeys(actingUserId: string): Promise<RunKeys> {
   return r;
 }
 
-const ENV_FALLBACK: Record<KeyName, keyof ReturnType<typeof env>> = {
-  openai: "OPENAI_API_KEY",
-  browserbase: "BROWSERBASE_API_KEY",
-  resend: "RESEND_API_KEY",
-  reacher: "REACHER_API_KEY",
-  nia: "NIA_API_KEY",
-  fal: "FAL_API_KEY",
-  cloudflare: "CLOUDFLARE_DNS_TOKEN",
-};
-
 export type KeyName = keyof RunKeys;
 
 /**
  * Per-run key reader. Returns the user's BYOK key when run context is
- * set, otherwise falls back to the platform env var. Throws when
- * neither is available — the caller is asking for a key the user
- * never connected.
+ * set, otherwise throws — every key here is BYOK, no env fallback.
  */
 export function getKey(name: KeyName): string {
   const ctx = storage.getStore();
   const fromCtx = ctx?.keys[name];
   if (fromCtx) return fromCtx;
-  const envKey = ENV_FALLBACK[name];
-  const fromEnv = env()[envKey];
-  if (typeof fromEnv === "string" && fromEnv.length > 0) return fromEnv;
   throw new Error(
     `BYOK key missing: ${name}. ${
       ctx
         ? `User ${ctx.actingUserId} has not connected their ${name} key in /console/settings/keys.`
-        : `No run context active and no ${envKey} fallback in env.`
+        : `No run context active — every step must call withRunContext({actingUserId, keys}) first.`
     }`,
   );
 }
 
 /**
- * Cloudflare-specific: the parent-agent has historically used two
- * tokens (DNS + Registrar). Users only set one BYOK Cloudflare key.
- * For the user path we treat both as the same key; platform env keeps
- * the split for ops use.
+ * Cloudflare-specific: users provide one Cloudflare key that's used for
+ * both DNS and Registrar API calls (their account, their tokens).
  */
-export function getCloudflareToken(
-  scope: "dns" | "registrar",
-): string {
-  const ctx = storage.getStore();
-  if (ctx?.keys.cloudflare) return ctx.keys.cloudflare;
-  const e = env();
-  return scope === "dns"
-    ? e.CLOUDFLARE_DNS_TOKEN
-    : e.CLOUDFLARE_REGISTRAR_TOKEN;
+export function getCloudflareToken(_scope: "dns" | "registrar"): string {
+  return getKey("cloudflare");
 }
