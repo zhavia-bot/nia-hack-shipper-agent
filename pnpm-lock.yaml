@@ -75,6 +75,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.6(react@19.2.6)
+      stripe:
+        specifier: ^18.5.0
+        version: 18.5.0(@types/node@24.12.3)
       svix:
         specifier: ^1.93.0
         version: 1.93.0
