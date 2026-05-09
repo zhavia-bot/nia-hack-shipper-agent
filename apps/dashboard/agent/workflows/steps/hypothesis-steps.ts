@@ -21,6 +21,7 @@ import {
   withRunContext,
   type RunKeys,
 } from "../../run-context.js";
+import { recordAgentEvent } from "../../events.js";
 
 const log = createLogger("workflows.steps.hypothesis");
 
@@ -65,6 +66,14 @@ export async function setupExperiment(h: Hypothesis): Promise<{
       experimentId,
       reservationId,
       amountUsd: h.trafficPlan.budgetUsd,
+    });
+    await recordAgentEvent({
+      level: "info",
+      kind: "experiment.setup",
+      summary: `Reserved $${h.trafficPlan.budgetUsd.toFixed(2)} — ${h.bucket.niche} / ${h.bucket.category}`,
+      generation: h.generation,
+      experimentId,
+      hypothesisId: h.id,
     });
     return { experimentId, reservationId };
   });
@@ -142,6 +151,17 @@ export async function scoutProductSource(
       title: productSource.originalTitle.slice(0, 80),
       priceUsd: productSource.originalPriceUsd,
       imgCandidates: picked.candidateImageUrls.length,
+    });
+    await recordAgentEvent({
+      level: "ok",
+      kind: "scout.found",
+      summary: `Scouted on Temu: ${productSource.originalTitle.slice(0, 70)}`,
+      generation: h.generation,
+      hypothesisId: h.id,
+      payload: {
+        priceUsd: productSource.originalPriceUsd,
+        url: productSource.url,
+      },
     });
     return { productSource };
   });
@@ -311,6 +331,15 @@ export async function shipTenant(
       displayPriceUsd: h.price,
     });
     log.info("tenant live", { experimentId, subdomain });
+    await recordAgentEvent({
+      level: "ok",
+      kind: "tenant.live",
+      summary: `Storefront live: ${subdomain}.${process.env["APEX_DOMAIN"] ?? "team.vercel.app"} — ${h.copy.headline.slice(0, 60)}`,
+      generation: h.generation,
+      experimentId,
+      hypothesisId: h.id,
+      tenantSubdomain: subdomain,
+    });
     return { subdomain };
   });
 }
@@ -342,6 +371,16 @@ export async function measureAndFinalize(
     const metrics = await measure(experimentId);
     await finalizeBudget(reservationId);
     log.info("measured + finalized", { ...metrics });
+    const roas = metrics.spendUsd > 0 ? metrics.revenueUsd / metrics.spendUsd : 0;
+    await recordAgentEvent({
+      level: roas >= 1 ? "ok" : "warn",
+      kind: "experiment.measured",
+      summary: `Measured ${h.id.slice(0, 8)}: ROAS ${roas.toFixed(2)} (rev $${metrics.revenueUsd.toFixed(2)} / spend $${metrics.spendUsd.toFixed(2)})`,
+      generation: h.generation,
+      experimentId,
+      hypothesisId: h.id,
+      payload: metrics,
+    });
     return metrics;
   });
 }
@@ -358,4 +397,10 @@ export async function rollbackOnCrash(
   await convexClient()
     .mutation("experiments:markCrashed", { id: experimentId, error: msg })
     .catch(() => undefined);
+  await recordAgentEvent({
+    level: "error",
+    kind: "experiment.crashed",
+    summary: `Crashed: ${msg.slice(0, 200)}`,
+    experimentId,
+  });
 }

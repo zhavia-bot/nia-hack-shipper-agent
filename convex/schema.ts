@@ -227,4 +227,32 @@ export default defineSchema({
     lastSnapshotAt: v.optional(v.number()),
     lastSnapshotGeneration: v.optional(v.number()),
   }),
+
+  /**
+   * P8.13 — realtime agent activity stream. The agent writes one row
+   * per high-level decision point (propose start, scout success, ship,
+   * measure verdict, settle, ...) so the operator's console can show
+   * a live ticker of what's happening on their account. Keep entries
+   * narrative — the JSON logs in stdout stay the firehose; this is
+   * the curated highlight reel.
+   */
+  agentEvents: defineTable({
+    userId: v.id("users"),
+    generation: v.optional(v.number()),
+    experimentId: v.optional(v.string()),
+    hypothesisId: v.optional(v.string()),
+    tenantSubdomain: v.optional(v.string()),
+    level: v.union(
+      v.literal("info"),
+      v.literal("ok"),
+      v.literal("warn"),
+      v.literal("error"),
+    ),
+    kind: v.string(),
+    summary: v.string(),
+    payload: v.optional(v.any()),
+    timestamp: v.number(),
+  })
+    .index("by_user_time", ["userId", "timestamp"])
+    .index("by_user_experiment", ["userId", "experimentId"]),
 });

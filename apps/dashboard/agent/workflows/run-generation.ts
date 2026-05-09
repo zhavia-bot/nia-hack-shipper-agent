@@ -13,6 +13,7 @@ import { distillLessonsForGeneration } from "../lessons.js";
 import { killSwitchTripped } from "../budget.js";
 import { convexClient } from "../tools/convex-client.js";
 import { loadRunKeys, withRunContext } from "../run-context.js";
+import { recordAgentEvent } from "../events.js";
 
 const log = createLogger("workflows.run-generation");
 const DEFAULT_BATCH_SIZE = 6;
@@ -55,6 +56,12 @@ export async function runGeneration(actingUserId: string): Promise<{
       {},
     );
     log.info("generation start", { generation, actingUserId });
+    await recordAgentEvent({
+      level: "info",
+      kind: "generation.start",
+      summary: `Generation ${generation} starting`,
+      generation,
+    });
 
     const lessons = (await convexClient().query("lessons:topWeighted", {
       limit: 50,
@@ -104,6 +111,14 @@ export async function runGeneration(actingUserId: string): Promise<{
     await convexClient().mutation("system:snapshotGeneration", { generation });
 
     log.info("generation complete", { generation });
+    const crashes = outcomes.filter((o) => o.status === "crash").length;
+    await recordAgentEvent({
+      level: crashes === 0 ? "ok" : "warn",
+      kind: "generation.complete",
+      summary: `Generation ${generation} done — ${outcomes.length} hypotheses, ${crashes} crashed`,
+      generation,
+      payload: { outcomes: outcomes.length, crashes },
+    });
 
     return { generation, outcomes };
   });

@@ -19,6 +19,7 @@ import { convexClient } from "./tools/convex-client.js";
 import { reacher } from "./tools/reacher.js";
 import { nia } from "./tools/nia.js";
 import { currentContext } from "./run-context.js";
+import { recordAgentEvent } from "./events.js";
 
 const log = createLogger("parent-agent.propose");
 
@@ -85,6 +86,17 @@ export async function propose(args: ProposeArgs): Promise<Hypothesis[]> {
     bucketsAvailable: bucketStats.length,
     nichePoolSize: nichePool.length,
     niaPriorsLen: niaPriors.length,
+  });
+  await recordAgentEvent({
+    level: "info",
+    kind: "propose.start",
+    summary: `Generation ${args.generation}: proposing ${args.batchSize} hypotheses (${exploitSlots} exploit / ${exploreNearSlots} near / ${exploreFarSlots} far)`,
+    generation: args.generation,
+    payload: {
+      exploitFraction,
+      bucketsAvailable: bucketStats.length,
+      nichePoolSize: nichePool.length,
+    },
   });
 
   const seeds: { bucket: Bucket; mode: "exploit" | "explore_near" | "explore_far" }[] =

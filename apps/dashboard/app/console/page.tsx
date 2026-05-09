@@ -6,6 +6,7 @@ import { ExperimentsFeed } from "@/components/experiments-feed";
 import { BucketHeatmap } from "@/components/bucket-heatmap";
 import { RunGenerationButton } from "@/components/run-generation-button";
 import { TenantsPanel } from "@/components/tenants-panel";
+import { AgentLogStream } from "@/components/agent-log-stream";
 
 export default function DashboardPage() {
   return (
@@ -75,6 +76,8 @@ export default function DashboardPage() {
       </header>
 
       <DollarTicker />
+
+      <AgentLogStream />
 
       <div
         style={{
