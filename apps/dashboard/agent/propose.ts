@@ -16,6 +16,7 @@ import { proposeHypothesis, render } from "@autoresearch/prompts";
 import { createLogger, ulid } from "@autoresearch/shared";
 import { generateJson } from "./tools/llm.js";
 import { convexClient } from "./tools/convex-client.js";
+import { reacher } from "./tools/reacher.js";
 
 const log = createLogger("parent-agent.propose");
 
@@ -34,9 +35,12 @@ const CATEGORIES = PhysicalCategorySchema.options;
 const PRICE_TIERS = PriceTierSchema.options;
 const CHANNELS = ChannelSchema.options;
 
-// P8.1 dev fallback ONLY — replaced by Reacher-derived live niches in P8.4.
-// One entry, not ten, so it's obvious when the live signal isn't wired.
-const DEV_FALLBACK_NICHES = ["LED desk gadget"];
+// Final backstop only — used when the Reacher MCP call fails entirely
+// (network down, key missing, account deactivated). The pool is normally
+// populated by `fetchNichePool()` against Reacher's TikTok Shop trending
+// surface. One entry on purpose: if you see this in a log, the live
+// signal is broken — don't pretend otherwise with a long fake list.
+const REACHER_FALLBACK_NICHES = ["LED desk gadget"];
 
 /**
  * Propose a batch of hypotheses for one generation. 70% Thompson-sampled
@@ -52,10 +56,13 @@ export async function propose(args: ProposeArgs): Promise<Hypothesis[]> {
     args.batchSize - exploitSlots - exploreNearSlots
   );
 
-  const bucketStats = await fetchBucketStats();
+  const [bucketStats, nichePool] = await Promise.all([
+    fetchBucketStats(),
+    fetchNichePool(),
+  ]);
   const exploitBuckets = thompsonSampleBuckets(bucketStats, exploitSlots);
-  const exploreNearBuckets = await sampleNearMissBuckets(exploreNearSlots);
-  const exploreFarBuckets = sampleFarBuckets(exploreFarSlots);
+  const exploreNearBuckets = await sampleNearMissBuckets(exploreNearSlots, nichePool);
+  const exploreFarBuckets = sampleFarBuckets(exploreFarSlots, nichePool);
 
   log.info("proposing batch", {
     generation: args.generation,
@@ -63,6 +70,7 @@ export async function propose(args: ProposeArgs): Promise<Hypothesis[]> {
     exploreNearSlots,
     exploreFarSlots,
     bucketsAvailable: bucketStats.length,
+    nichePoolSize: nichePool.length,
   });
 
   const seeds: { bucket: Bucket; mode: "exploit" | "explore_near" | "explore_far" }[] =
@@ -87,6 +95,110 @@ export async function propose(args: ProposeArgs): Promise<Hypothesis[]> {
   return hypotheses.filter((h): h is Hypothesis => h !== null);
 }
 
+/**
+ * Pull a fresh pool of trending TikTok-Shop niches from Reacher. We don't
+ * hardcode tool names — Reacher's MCP surface evolves — so we list the
+ * available tools first and pick the first one whose name looks niche-y
+ * (`*trend*`, `*niche*`, `*top_products*`). The picked tool is called with
+ * a generic `{ channel: "tiktok_shop", limit: 30 }` arg bag; tools that
+ * ignore unknown args simply return their default page, which is fine.
+ *
+ * Output is best-effort: any free-form string in the MCP content blocks
+ * that looks like a short noun phrase becomes a candidate niche. Anything
+ * unparseable falls back to `REACHER_FALLBACK_NICHES`. We log a clear
+ * warning on fallback so an empty Reacher response never silently masquerades
+ * as a real signal.
+ */
+async function fetchNichePool(): Promise<string[]> {
+  try {
+    const tools = await reacher.listTools();
+    const list = (tools as { tools?: { name: string }[] }).tools ?? [];
+    const candidate = list.find((t) =>
+      /trend|niche|top.*product|category/i.test(t.name),
+    );
+    if (!candidate) {
+      log.warn("reacher: no trending-niches tool found; using fallback", {
+        toolCount: list.length,
+      });
+      return REACHER_FALLBACK_NICHES;
+    }
+    const result = await reacher.callTool(candidate.name, {
+      channel: "tiktok_shop",
+      limit: 30,
+    });
+    const niches = extractNichesFromMcp(result);
+    if (niches.length === 0) {
+      log.warn("reacher: tool returned no parseable niches; using fallback", {
+        tool: candidate.name,
+      });
+      return REACHER_FALLBACK_NICHES;
+    }
+    log.info("reacher niche pool", { tool: candidate.name, count: niches.length });
+    return niches;
+  } catch (err) {
+    log.error("reacher niche fetch failed; using fallback", { err });
+    return REACHER_FALLBACK_NICHES;
+  }
+}
+
+/**
+ * Extract niche strings from an MCP `callTool` response. MCP returns a
+ * `content[]` array of `{ type, text }` blocks; we accept either a JSON
+ * payload (array of strings, or array of `{ name }` / `{ niche }` /
+ * `{ title }` objects) or a newline-separated plaintext list. Strings are
+ * trimmed, deduped, and capped to ≤8 words each so we don't end up with
+ * sentence-shaped "niches".
+ */
+function extractNichesFromMcp(result: unknown): string[] {
+  const out = new Set<string>();
+  const content =
+    (result as { content?: { type?: string; text?: string }[] }).content ?? [];
+  for (const block of content) {
+    if (block.type !== "text" || !block.text) continue;
+    const txt = block.text.trim();
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(txt);
+    } catch {
+      // not json — fall through to plaintext path
+    }
+    const collect = (s: unknown): void => {
+      if (typeof s !== "string") return;
+      const trimmed = s.trim();
+      if (!trimmed) return;
+      if (trimmed.split(/\s+/).length > 8) return;
+      out.add(trimmed);
+    };
+    if (Array.isArray(parsed)) {
+      for (const item of parsed) {
+        if (typeof item === "string") collect(item);
+        else if (item && typeof item === "object") {
+          const o = item as Record<string, unknown>;
+          collect(o["name"] ?? o["niche"] ?? o["title"] ?? o["category"]);
+        }
+      }
+    } else if (parsed && typeof parsed === "object") {
+      const o = parsed as Record<string, unknown>;
+      const arr = o["niches"] ?? o["results"] ?? o["items"] ?? o["data"];
+      if (Array.isArray(arr)) {
+        for (const item of arr) {
+          if (typeof item === "string") collect(item);
+          else if (item && typeof item === "object") {
+            const oo = item as Record<string, unknown>;
+            collect(oo["name"] ?? oo["niche"] ?? oo["title"] ?? oo["category"]);
+          }
+        }
+      }
+    } else {
+      // plaintext: split on newlines / bullets
+      for (const line of txt.split(/\r?\n|^\s*[-*•]\s+/m)) {
+        collect(line);
+      }
+    }
+  }
+  return [...out];
+}
+
 async function fetchBucketStats(): Promise<BucketStats[]> {
   const rows = (await convexClient().query(
     "experiments:bucketStats",
@@ -99,12 +211,15 @@ async function fetchBucketStats(): Promise<BucketStats[]> {
   }));
 }
 
-async function sampleNearMissBuckets(slots: number): Promise<Bucket[]> {
+async function sampleNearMissBuckets(
+  slots: number,
+  nichePool: string[],
+): Promise<Bucket[]> {
   if (slots <= 0) return [];
   const refines = (await convexClient().query("experiments:byStatus", {
     status: "refine",
   })) as Array<{ bucket: Bucket }>;
-  if (refines.length === 0) return sampleFarBuckets(slots);
+  if (refines.length === 0) return sampleFarBuckets(slots, nichePool);
   const out: Bucket[] = [];
   for (let i = 0; i < slots; i++) {
     const seed = refines[Math.floor(Math.random() * refines.length)]!;
@@ -113,11 +228,11 @@ async function sampleNearMissBuckets(slots: number): Promise<Bucket[]> {
   return out;
 }
 
-function sampleFarBuckets(slots: number): Bucket[] {
+function sampleFarBuckets(slots: number, nichePool: string[]): Bucket[] {
   const out: Bucket[] = [];
   for (let i = 0; i < slots; i++) {
     out.push({
-      niche: pick(DEV_FALLBACK_NICHES),
+      niche: pick(nichePool),
       category: pick(CATEGORIES),
       priceTier: pick(PRICE_TIERS),
       channel: pick(CHANNELS),
