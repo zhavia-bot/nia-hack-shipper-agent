@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Show, UserButton } from "@clerk/nextjs";
 import {
   ArrowRight,
   Bot,
@@ -111,11 +112,24 @@ export default function LandingPage() {
           >
             Stack
           </Link>
-          <Button asChild size="sm" variant="outline">
-            <Link href="/console">
-              Live console <ArrowRight className="ml-1 h-3.5 w-3.5" />
-            </Link>
-          </Button>
+          <Show when="signed-out">
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/sign-in">Sign in</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/sign-up">
+                Get started <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </Show>
+          <Show when="signed-in">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/console">
+                Console <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+            <UserButton />
+          </Show>
         </nav>
       </header>
 
@@ -139,11 +153,20 @@ export default function LandingPage() {
         </p>
 
         <div className="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <Button asChild size="lg" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
-            <Link href="/console">
-              Watch it print <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
+          <Show when="signed-out">
+            <Button asChild size="lg" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
+              <Link href="/sign-up">
+                Run the agent <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </Show>
+          <Show when="signed-in">
+            <Button asChild size="lg" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
+              <Link href="/console">
+                Open console <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </Show>
           <Button asChild size="lg" variant="ghost" className="gap-2">
             <Link href="#how">See the architecture</Link>
           </Button>

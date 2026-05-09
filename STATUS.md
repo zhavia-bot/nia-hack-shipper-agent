@@ -9,8 +9,8 @@ We're pivoting from "single-operator agent" → "multi-tenant SaaS where any use
 ### Phase plan
 
 - **P1 — Auth foundation**
-  - [x] P1.1 packages/auth HS256 → RS256 (commit `<P1.1>`). Convex env: `AUTH_JWT_PUBLIC_KEY` set; `AUTH_JWT_SECRET` removed. Service tokens re-minted in `.env.local`. Smoke-tested: `dashboard:netDollars` accepts new RS256 token.
-  - [ ] P1.2 Clerk on apps/dashboard
+  - [x] P1.1 packages/auth HS256 → RS256 (commit `b5269f2`). Convex env: `AUTH_JWT_PUBLIC_KEY` set; `AUTH_JWT_SECRET` removed. Service tokens re-minted in `.env.local`. Smoke-tested: `dashboard:netDollars` accepts new RS256 token.
+  - [x] P1.2 Clerk on apps/dashboard. `proxy.ts` (Next 16 rename) protects `/console/*` via `auth.protect()`. `<ClerkProvider>` + `<ConvexProviderWithClerk>` wrap the tree. Sign-in/up pages at `/sign-in` and `/sign-up`. Landing nav uses `<Show when=…>` (Clerk Core 3 replaces SignedIn/SignedOut). **Blocked on user providing Clerk keys** — see Notes.
   - [ ] P1.3 convex/auth.config.ts (Clerk + service JWT providers)
   - [ ] P1.4 users table + requireUser helper + Clerk webhook
 - **P2** — userId scoping on tenants/experiments/ledgerEvents/budget/lessons/agentRuns + backfill
