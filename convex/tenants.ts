@@ -36,6 +36,13 @@ export const create = mutation({
     stripePriceId: v.string(),
     productSource: productSourceValidator,
     adCreativeStorageIds: v.array(v.string()),
+    displayCopy: v.object({
+      headline: v.string(),
+      subhead: v.string(),
+      bullets: v.array(v.string()),
+      cta: v.string(),
+    }),
+    displayPriceUsd: v.number(),
   },
   handler: async (ctx, args) => {
     await requireIdentity(args.token, ["agent"]);
@@ -58,6 +65,8 @@ export const create = mutation({
       stripePriceId: args.stripePriceId,
       productSource: args.productSource,
       adCreativeStorageIds: args.adCreativeStorageIds,
+      displayCopy: args.displayCopy,
+      displayPriceUsd: args.displayPriceUsd,
       status: "live",
       createdAt: Date.now(),
     });

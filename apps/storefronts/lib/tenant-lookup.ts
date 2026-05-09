@@ -19,6 +19,13 @@ export interface ResolvedTenant {
     scrapedImageStorageIds: string[];
   };
   adCreativeStorageIds: string[];
+  displayCopy: {
+    headline: string;
+    subhead: string;
+    bullets: string[];
+    cta: string;
+  };
+  displayPriceUsd: number;
   customDomain?: string;
   status: "live" | "paused" | "killed";
 }

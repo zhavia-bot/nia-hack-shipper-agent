@@ -68,6 +68,16 @@ export default defineSchema({
     // Temu/Alibaba/1688 and ships it as ad-creative-driven storefront.
     productSource: productSourceValidator,
     adCreativeStorageIds: v.array(v.string()),
+    // P8.9: copy + price denormalized onto the tenant so the storefront
+    // page renders from a single bySubdomain query without joining back
+    // to a hypothesis store.
+    displayCopy: v.object({
+      headline: v.string(),
+      subhead: v.string(),
+      bullets: v.array(v.string()),
+      cta: v.string(),
+    }),
+    displayPriceUsd: v.number(),
     customDomain: v.optional(v.string()),
     status: v.union(
       v.literal("live"),

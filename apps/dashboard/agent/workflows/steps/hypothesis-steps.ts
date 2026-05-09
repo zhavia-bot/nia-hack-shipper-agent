@@ -307,6 +307,8 @@ export async function shipTenant(
       stripePriceId: priceId,
       productSource: h.productSource,
       adCreativeStorageIds: h.adCreativeStorageIds,
+      displayCopy: h.copy,
+      displayPriceUsd: h.price,
     });
     log.info("tenant live", { experimentId, subdomain });
     return { subdomain };
