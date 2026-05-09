@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.112",
-    "@anthropic-ai/sdk": "^0.40.0",
     "@autoresearch/auth": "workspace:*",
     "@autoresearch/bandit": "workspace:*",
     "@autoresearch/convex": "workspace:*",

@@ -1,25 +1,30 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { generateObject } from "ai";
+import { createGateway } from "@ai-sdk/gateway";
 import { z } from "zod";
 import { createLogger, type Logger } from "@autoresearch/shared";
 import type { RenderedPrompt } from "@autoresearch/prompts";
-import { env } from "../env.js";
+import { getKey } from "../run-context.js";
 
 const log: Logger = createLogger("parent-agent.llm");
 
 /**
- * Pinned Claude model. Latest Opus as of 2026-05-09 is `claude-opus-4-7`.
- * We default to it for `propose` (creativity matters) and Sonnet for
- * `distill` (cheaper, still strong reasoning).
+ * Model IDs as seen by Vercel AI Gateway. Gateway resolves these to the
+ * underlying provider; the user's `aiGatewayKey` covers billing. Sonnet
+ * 4.6 confirmed in Gateway docs; Opus 4.7 may need empirical verification
+ * via `gateway.getAvailableModels()` — fall back to 4.6 if absent.
  */
-export const MODEL_OPUS = "claude-opus-4-7";
-export const MODEL_SONNET = "claude-sonnet-4-6";
+export const MODEL_OPUS = "anthropic/claude-opus-4.6";
+export const MODEL_SONNET = "anthropic/claude-sonnet-4.6";
 
-let anthropicCached: Anthropic | null = null;
-function anthropic(): Anthropic {
-  if (!anthropicCached) {
-    anthropicCached = new Anthropic({ apiKey: env().ANTHROPIC_API_KEY });
+const gatewayCache = new Map<string, ReturnType<typeof createGateway>>();
+function gatewayForCurrent(): ReturnType<typeof createGateway> {
+  const apiKey = getKey("aiGateway");
+  let gw = gatewayCache.get(apiKey);
+  if (!gw) {
+    gw = createGateway({ apiKey });
+    gatewayCache.set(apiKey, gw);
   }
-  return anthropicCached;
+  return gw;
 }
 
 export interface JsonGenArgs<T> {
@@ -27,90 +32,31 @@ export interface JsonGenArgs<T> {
   prompt: RenderedPrompt;
   schema: z.ZodType<T>;
   maxTokens?: number;
-  /** Number of attempts on schema-validation failure. Spec violations
-   * are returned to the model as the next user turn. */
-  maxRetries?: number;
 }
 
 /**
- * Run a structured generation: ask for valid JSON, validate against the
- * Zod schema, retry with the validation error verbatim on failure
- * (matches `docs/stack.md` §8 failure mode #7).
+ * Run a structured generation through Vercel AI Gateway. AI SDK's
+ * `generateObject` handles JSON-mode + schema validation natively; the
+ * Anthropic-specific extract/strip-fence dance is gone.
  */
 export async function generateJson<T>(args: JsonGenArgs<T>): Promise<T> {
-  const model = args.model ?? MODEL_OPUS;
-  const maxRetries = args.maxRetries ?? 3;
-  const messages: Anthropic.MessageParam[] = [
-    { role: "user", content: args.prompt.user },
-  ];
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const res = await anthropic().messages.create({
-      model,
+  const modelId = args.model ?? MODEL_OPUS;
+  const gw = gatewayForCurrent();
+  try {
+    const { object } = await generateObject<T>({
+      model: gw(modelId),
+      schema: args.schema,
       system: args.prompt.system,
-      messages,
-      max_tokens: args.maxTokens ?? 2048,
+      prompt: args.prompt.user,
+      maxTokens: args.maxTokens ?? 2048,
     });
-
-    const text = extractText(res.content);
-    const candidate = stripCodeFence(text);
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(candidate);
-    } catch (err) {
-      log.warn("JSON parse failed, retrying", {
-        attempt,
-        prompt: args.prompt.name,
-        snippet: candidate.slice(0, 200),
-      });
-      messages.push(
-        { role: "assistant", content: text },
-        {
-          role: "user",
-          content: `That was not valid JSON: ${
-            err instanceof Error ? err.message : String(err)
-          }. Output only the JSON, no surrounding prose, no code fence.`,
-        }
-      );
-      continue;
-    }
-    const result = args.schema.safeParse(parsed);
-    if (result.success) return result.data;
-    log.warn("schema validation failed, retrying", {
-      attempt,
+    return object;
+  } catch (err) {
+    log.error("generateJson failed", {
       prompt: args.prompt.name,
-      issues: result.error.issues.length,
+      version: args.prompt.version,
+      err: err instanceof Error ? err.message : String(err),
     });
-    messages.push(
-      { role: "assistant", content: text },
-      {
-        role: "user",
-        content: `Schema validation failed:\n${result.error.issues
-          .map((i) => `- ${i.path.join(".")}: ${i.message}`)
-          .join("\n")}\nReturn corrected JSON only.`,
-      }
-    );
+    throw err;
   }
-  throw new Error(
-    `generateJson exceeded ${maxRetries} retries for prompt ${args.prompt.name}@${args.prompt.version}`
-  );
-}
-
-function extractText(content: Anthropic.ContentBlock[]): string {
-  return content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-}
-
-function stripCodeFence(text: string): string {
-  const trimmed = text.trim();
-  if (trimmed.startsWith("```")) {
-    const firstNewline = trimmed.indexOf("\n");
-    const closing = trimmed.lastIndexOf("```");
-    if (firstNewline >= 0 && closing > firstNewline) {
-      return trimmed.slice(firstNewline + 1, closing).trim();
-    }
-  }
-  return trimmed;
 }
