@@ -14,12 +14,15 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 9. Step 8 — `convex/` (schema, tenants, experiments, ledger [IMMUTABLE], lessons, budget [IMMUTABLE], auditLog, system, http; vendored identity check)
 10. Step 9 — `apps/parent-agent` (orchestrator, child, propose/select/lessons, all tools, program.md)
 11. Step 10 — `apps/storefronts` (multi-tenant Next 16, middleware rewrite, /api/checkout, /api/stripe-webhook, /api/deliver/[token], success page, HMAC deliver-token, convex/storage.ts)
+12. Step 11 — `apps/dashboard` (Convex realtime $ ticker + budget/heatmap/experiments + basic-auth gate; convex/dashboard.ts aggregator views)
 
-## In progress
-- Step 11: apps/dashboard (live $ ticker via Convex realtime)
+## Done — full build complete
+All 11 steps committed. `pnpm install` not yet run. No tests/deploy yet.
 
-## Next
-- (last step)
+## Next (when resumed)
+- `pnpm install` from repo root, then `pnpm --filter @autoresearch/convex codegen` to populate `convex/_generated/`
+- Wire up Tensorlake deploy and Convex/Vercel projects
+- Add tests for bandit + deliverables packages
 
 ## Notes
 - Stack pins: Node 24, TS 6.0, Next.js 16, pnpm 11, ESM only
