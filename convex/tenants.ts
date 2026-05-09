@@ -223,3 +223,61 @@ export const mine = query({
       .collect();
   },
 });
+
+/**
+ * Operator panic button: kill a hypothesis the calling user owns.
+ * Sets status='killed' so the storefront short-circuits to 404 and
+ * the runHypothesis workflow's measurement step sees a non-live tenant.
+ *
+ * The force-refund API route in the dashboard always calls this first,
+ * so a successful POST to /api/operator/force-refund implies the
+ * tenant is killed *before* refunds start landing — Stripe webhooks
+ * for those refunds then book to a status=killed tenant, which the
+ * dashboard renders distinctly.
+ */
+export const cancelByOwner = mutation({
+  args: { subdomain: v.string() },
+  handler: async (ctx, { subdomain }) => {
+    const user = await requireUser(ctx);
+    const tenant = await ctx.db
+      .query("tenants")
+      .withIndex("by_subdomain", (q) => q.eq("subdomain", subdomain))
+      .unique();
+    if (!tenant) throw new Error(`tenant not found: ${subdomain}`);
+    if (tenant.userId !== user._id) {
+      throw new Error("not your tenant");
+    }
+    if (tenant.status !== "killed") {
+      await ctx.db.patch(tenant._id, { status: "killed" });
+    }
+  },
+});
+
+/**
+ * Operator side-channel: fetch the tenant + connected-account id for
+ * a tenant the current user owns. The dashboard's force-refund route
+ * needs both (subdomain → tenant for sanity, accountId → Stripe-Account
+ * header). We re-check ownership here so the API route can rely on a
+ * single Convex round-trip; throwing on mismatch keeps the route's
+ * happy-path simple.
+ */
+export const operatorContext = query({
+  args: { subdomain: v.string() },
+  handler: async (ctx, { subdomain }) => {
+    const user = await requireUser(ctx);
+    const tenant = await ctx.db
+      .query("tenants")
+      .withIndex("by_subdomain", (q) => q.eq("subdomain", subdomain))
+      .unique();
+    if (!tenant) return null;
+    if (tenant.userId !== user._id) return null;
+    return {
+      tenantId: tenant._id,
+      subdomain: tenant.subdomain,
+      experimentId: tenant.experimentId,
+      hypothesisId: tenant.hypothesisId,
+      status: tenant.status,
+      accountId: user.stripeConnectedAccountId ?? null,
+    };
+  },
+});

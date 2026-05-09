@@ -5,6 +5,7 @@ import { RecentLedger } from "@/components/recent-ledger";
 import { ExperimentsFeed } from "@/components/experiments-feed";
 import { BucketHeatmap } from "@/components/bucket-heatmap";
 import { RunGenerationButton } from "@/components/run-generation-button";
+import { TenantsPanel } from "@/components/tenants-panel";
 
 export default function DashboardPage() {
   return (
@@ -87,6 +88,8 @@ export default function DashboardPage() {
       </div>
 
       <BucketHeatmap />
+
+      <TenantsPanel />
 
       <ExperimentsFeed />
 
