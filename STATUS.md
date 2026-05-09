@@ -8,13 +8,13 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 3. Step 2 — `packages/schemas`
 4. Step 3 — `packages/shared`
 5. Step 4 — `packages/bandit`
-6. Step 5 — `packages/deliverables` (pdf-lib, jszip, validated specs)
+6. Step 5 — `packages/deliverables`
+7. Step 6 — `packages/prompts` (propose, distill, copy, report/pack/json deliverable specs; versioned templates)
 
 ## In progress
-- Step 6: packages/prompts
+- Step 7: packages/auth
 
 ## Next
-7. packages/auth
 8. convex/
 9. apps/parent-agent (+ program.md)
 10. apps/storefronts
