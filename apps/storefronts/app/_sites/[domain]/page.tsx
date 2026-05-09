@@ -50,10 +50,12 @@ export async function generateMetadata({
   const { domain } = await params;
   const t = await resolveTenantByHost(domain.toLowerCase());
   if (!t) return { title: "Not found" };
-  const spec = (t.deliverableSpec ?? {}) as SpecShape;
+  // P8.1: deliverableSpec is gone. Real physical-product copy lives on
+  // the hypothesis row; P8.9 will rewrite this page to read it. Until
+  // then the storefront just shows the product title.
   return {
-    title: spec.headline ?? t.subdomain,
-    description: spec.subhead,
+    title: t.productSource.originalTitle,
+    description: t.productSource.originalTitle,
   };
 }
 
@@ -75,7 +77,16 @@ export default async function TenantPage({ params }: PageProps) {
   const tenant = await resolveTenantByHost(domain.toLowerCase());
   if (!tenant) notFound();
 
-  const spec = (tenant.deliverableSpec ?? {}) as SpecShape;
+  // P8.1: pivot to physical products. The old deliverableSpec is gone;
+  // P8.9 will replace this whole page with one driven by hypothesis copy
+  // + ad creatives. Until then we render a minimal placeholder built from
+  // the scouted productSource so the page compiles + the buy button works.
+  const spec: SpecShape = {
+    headline: tenant.productSource.originalTitle,
+    subhead: undefined,
+    displayPriceUsd: tenant.productSource.originalPriceUsd,
+    originalPriceUsd: tenant.productSource.originalPriceUsd,
+  };
   const price = spec.displayPriceUsd ?? null;
   const original = spec.originalPriceUsd ?? null;
   const discountPct =

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DeliverableKindSchema } from "./common.js";
+import { ProductSourceSchema } from "./hypothesis.js";
 
 export const TenantStatusSchema = z.enum(["live", "paused", "killed"]);
 export type TenantStatus = z.infer<typeof TenantStatusSchema>;
@@ -11,8 +11,9 @@ export const TenantSchema = z.object({
   generation: z.number().int().nonnegative(),
   stripeProductId: z.string(),
   stripePriceId: z.string(),
-  deliverableKind: DeliverableKindSchema,
-  deliverableSpec: z.unknown(),
+  // P8.1: physical-products pivot — replaces deliverableKind/deliverableSpec.
+  productSource: ProductSourceSchema,
+  adCreativeStorageIds: z.array(z.string()).max(5),
   customDomain: z.string().nullable().optional(),
   status: TenantStatusSchema,
   createdAt: z.number().int(),

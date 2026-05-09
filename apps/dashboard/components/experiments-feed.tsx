@@ -108,7 +108,7 @@ export function ExperimentsFeed() {
                   </span>
                 </td>
                 <td style={{ ...cellStyle, color: "#444" }}>
-                  {x.bucket.niche}/{x.bucket.format}/{x.bucket.channel}
+                  {x.bucket.niche}/{x.bucket.category}/{x.bucket.channel}
                 </td>
                 <td style={cellStyle}>{fmtUsd(x.spendUsd)}</td>
                 <td style={cellStyle}>{fmtUsd(x.revenueUsd)}</td>

@@ -6,7 +6,6 @@ import { reserveBudget, finalizeBudget, releaseBudget } from "../../budget.js";
 import { measure, type MeasuredOutcome } from "../../revenue.js";
 import { stripe } from "../../tools/stripe.js";
 import { driveTraffic } from "../../tools/traffic.js";
-import { generateAndPersist } from "../../tools/deliverables.js";
 import { convexClient } from "../../tools/convex-client.js";
 import {
   loadRunKeys,
@@ -62,15 +61,23 @@ export async function setupExperiment(h: Hypothesis): Promise<{
   });
 }
 
+/**
+ * Ship the tenant storefront. P8.1 schema pivot: callers must pass the
+ * scouted `productSource` (P8.6) and the AI-generated `adCreativeStorageIds`
+ * (P8.8). This step itself just creates the Stripe product + Convex tenant
+ * row — no deliverable generation any more, since the product is a real
+ * physical SKU (no PDF/ZIP to render).
+ */
 export async function shipTenant(
   h: Hypothesis,
   experimentId: string,
-): Promise<{ subdomain: string; deliverableStorageId: string }> {
+): Promise<{ subdomain: string }> {
   return withUserCtx(h.actingUserId, async () => {
-    const deliverable = await generateAndPersist({
-      deliverable: h.deliverable,
-      baseFilename: `tenant-${h.id.slice(0, 12)}`,
-    });
+    if (!h.productSource) {
+      throw new Error(
+        "shipTenant called before scoutProductSource — h.productSource is null",
+      );
+    }
     const { productId, priceId } = await stripe.createProductAndPrice({
       name: h.copy.headline,
       description: h.copy.subhead,
@@ -86,12 +93,11 @@ export async function shipTenant(
       generation: h.generation,
       stripeProductId: productId,
       stripePriceId: priceId,
-      deliverableKind: h.deliverable.kind,
-      deliverableSpec: h.deliverable.spec,
-      deliverableStorageId: deliverable.storageId,
+      productSource: h.productSource,
+      adCreativeStorageIds: h.adCreativeStorageIds,
     });
     log.info("tenant live", { experimentId, subdomain });
-    return { subdomain, deliverableStorageId: deliverable.storageId };
+    return { subdomain };
   });
 }
 

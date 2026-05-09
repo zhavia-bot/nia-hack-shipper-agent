@@ -9,17 +9,20 @@ const tenantStatus = v.union(
   v.literal("killed")
 );
 
-const deliverableKind = v.union(
-  v.literal("pdf"),
-  v.literal("json"),
-  v.literal("md"),
-  v.literal("zip")
-);
+const productSourceValidator = v.object({
+  marketplace: v.string(),
+  url: v.string(),
+  originalTitle: v.string(),
+  originalPriceUsd: v.number(),
+  scrapedImageStorageIds: v.array(v.string()),
+});
 
 /**
  * Service-side: agent creates a tenant for a specific human user.
  * `actingUserId` is the user whose run this is — required so multi-tenant
- * scoping works downstream.
+ * scoping works downstream. P8.1 pivot: tenants now carry a Temu/Alibaba
+ * product source + AI-generated ad creatives instead of a digital
+ * deliverable.
  */
 export const create = mutation({
   args: {
@@ -31,9 +34,8 @@ export const create = mutation({
     generation: v.number(),
     stripeProductId: v.string(),
     stripePriceId: v.string(),
-    deliverableKind,
-    deliverableSpec: v.any(),
-    deliverableStorageId: v.optional(v.string()),
+    productSource: productSourceValidator,
+    adCreativeStorageIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
     await requireIdentity(args.token, ["agent"]);
@@ -54,9 +56,8 @@ export const create = mutation({
       generation: args.generation,
       stripeProductId: args.stripeProductId,
       stripePriceId: args.stripePriceId,
-      deliverableKind: args.deliverableKind,
-      deliverableSpec: args.deliverableSpec,
-      deliverableStorageId: args.deliverableStorageId,
+      productSource: args.productSource,
+      adCreativeStorageIds: args.adCreativeStorageIds,
       status: "live",
       createdAt: Date.now(),
     });

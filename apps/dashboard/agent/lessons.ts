@@ -27,7 +27,7 @@ export async function distillLessonsForGeneration(generation: number): Promise<{
   }) as Array<{
     _id: string;
     hypothesisId: string;
-    bucket: { niche: string; format: string; priceTier: string; channel: string };
+    bucket: { niche: string; category: string; priceTier: string; channel: string };
     spendUsd: number;
     revenueUsd: number;
     visitors: number;

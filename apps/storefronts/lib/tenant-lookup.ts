@@ -11,9 +11,14 @@ export interface ResolvedTenant {
   generation: number;
   stripeProductId: string;
   stripePriceId: string;
-  deliverableKind: "pdf" | "json" | "md" | "zip";
-  deliverableSpec: unknown;
-  deliverableStorageId?: string;
+  productSource: {
+    marketplace: "temu" | "alibaba" | "1688";
+    url: string;
+    originalTitle: string;
+    originalPriceUsd: number;
+    scrapedImageStorageIds: string[];
+  };
+  adCreativeStorageIds: string[];
   customDomain?: string;
   status: "live" | "paused" | "killed";
 }

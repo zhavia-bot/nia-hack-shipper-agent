@@ -1,8 +1,8 @@
 import { z } from "zod";
 import {
   ChannelSchema,
-  FormatSchema,
   NicheSchema,
+  PhysicalCategorySchema,
   PriceTierSchema,
 } from "./common.js";
 
@@ -10,7 +10,7 @@ export const LessonScopeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("bucket"),
     niche: NicheSchema,
-    format: FormatSchema,
+    category: PhysicalCategorySchema,
     priceTier: PriceTierSchema,
     channel: ChannelSchema,
   }),

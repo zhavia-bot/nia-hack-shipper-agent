@@ -5,7 +5,7 @@ import {
   type Lesson,
   type Tenant,
   ChannelSchema,
-  FormatSchema,
+  PhysicalCategorySchema,
   PriceTierSchema,
 } from "@autoresearch/schemas";
 import {
@@ -30,22 +30,13 @@ const EXPLOIT_FRACTION = 0.7;
 const EXPLORE_NEAR_FRACTION = 0.2;
 // Remainder is explore-far (0.1).
 
-const FORMATS = FormatSchema.options;
+const CATEGORIES = PhysicalCategorySchema.options;
 const PRICE_TIERS = PriceTierSchema.options;
 const CHANNELS = ChannelSchema.options;
 
-const SEED_NICHES = [
-  "indie SaaS pricing",
-  "Notion templates",
-  "ATS resume templates",
-  "Cursor/Copilot productivity",
-  "n8n automations",
-  "small-fund LP intros",
-  "wedding photography pricing",
-  "VC associate workflows",
-  "freelance contract clauses",
-  "Etsy shop optimization",
-];
+// P8.1 dev fallback ONLY — replaced by Reacher-derived live niches in P8.4.
+// One entry, not ten, so it's obvious when the live signal isn't wired.
+const DEV_FALLBACK_NICHES = ["LED desk gadget"];
 
 /**
  * Propose a batch of hypotheses for one generation. 70% Thompson-sampled
@@ -126,8 +117,8 @@ function sampleFarBuckets(slots: number): Bucket[] {
   const out: Bucket[] = [];
   for (let i = 0; i < slots; i++) {
     out.push({
-      niche: pick(SEED_NICHES),
-      format: pick(FORMATS),
+      niche: pick(DEV_FALLBACK_NICHES),
+      category: pick(CATEGORIES),
       priceTier: pick(PRICE_TIERS),
       channel: pick(CHANNELS),
     });
@@ -140,7 +131,7 @@ function mutateBucket(b: Bucket): Bucket {
   const dim = Math.floor(Math.random() * 3) + 1;
   return {
     niche: b.niche,
-    format: dim === 1 ? pick(FORMATS) : b.format,
+    category: dim === 1 ? pick(CATEGORIES) : b.category,
     priceTier: dim === 2 ? pick(PRICE_TIERS) : b.priceTier,
     channel: dim === 3 ? pick(CHANNELS) : b.channel,
   };
@@ -162,7 +153,7 @@ async function llmGenerate(
     liveTenants: args.liveTenants.map((t) => ({
       subdomain: t.subdomain,
       hypothesisId: t.hypothesisId,
-      deliverableKind: t.deliverableKind,
+      productTitle: t.productSource.originalTitle,
     })),
     modeHint: mode,
   });
@@ -173,11 +164,15 @@ async function llmGenerate(
     maxTokens: 2048,
   });
 
-  // The LLM does not own the id/generation/parentId fields — overwrite.
+  // The LLM does not own id/generation/parentId; nor productSource/
+  // adCreativeStorageIds (those are filled by the scout + image-gen steps
+  // downstream — P8.6 / P8.8). Overwrite to defaults.
   return {
     ...result,
     id: ulid(),
     generation: args.generation,
     parentId: result.parentId ?? null,
+    productSource: null,
+    adCreativeStorageIds: [],
   };
 }

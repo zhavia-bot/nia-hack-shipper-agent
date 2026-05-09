@@ -3,9 +3,17 @@ import { v } from "convex/values";
 
 const bucketValidator = v.object({
   niche: v.string(),
-  format: v.string(),
+  category: v.string(),
   priceTier: v.string(),
   channel: v.string(),
+});
+
+const productSourceValidator = v.object({
+  marketplace: v.string(),
+  url: v.string(),
+  originalTitle: v.string(),
+  originalPriceUsd: v.number(),
+  scrapedImageStorageIds: v.array(v.string()),
 });
 
 export default defineSchema({
@@ -57,14 +65,10 @@ export default defineSchema({
     generation: v.number(),
     stripeProductId: v.string(),
     stripePriceId: v.string(),
-    deliverableKind: v.union(
-      v.literal("pdf"),
-      v.literal("json"),
-      v.literal("md"),
-      v.literal("zip")
-    ),
-    deliverableSpec: v.any(),
-    deliverableStorageId: v.optional(v.string()),
+    // P8.1: physical-products pivot. The agent now scouts a real SKU on
+    // Temu/Alibaba/1688 and ships it as ad-creative-driven storefront.
+    productSource: productSourceValidator,
+    adCreativeStorageIds: v.array(v.string()),
     customDomain: v.optional(v.string()),
     status: v.union(
       v.literal("live"),
@@ -109,7 +113,7 @@ export default defineSchema({
   })
     .index("by_status", ["status"])
     .index("by_generation", ["generation"])
-    .index("by_bucket", ["bucket.niche", "bucket.format", "bucket.channel"])
+    .index("by_bucket", ["bucket.niche", "bucket.category", "bucket.channel"])
     .index("by_user", ["userId"])
     .index("by_user_status", ["userId", "status"])
     .index("by_user_generation", ["userId", "generation"]),
@@ -146,7 +150,7 @@ export default defineSchema({
       v.object({
         kind: v.literal("bucket"),
         niche: v.string(),
-        format: v.string(),
+        category: v.string(),
         priceTier: v.string(),
         channel: v.string(),
       }),

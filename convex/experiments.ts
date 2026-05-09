@@ -5,7 +5,7 @@ import { requireUser } from "./users.js";
 
 const bucketValidator = v.object({
   niche: v.string(),
-  format: v.string(),
+  category: v.string(),
   priceTier: v.string(),
   channel: v.string(),
 });
@@ -218,7 +218,7 @@ export const bucketStats = query({
     const map = new Map<
       string,
       {
-        bucket: { niche: string; format: string; priceTier: string; channel: string };
+        bucket: { niche: string; category: string; priceTier: string; channel: string };
         conversions: number;
         nonConversions: number;
         n: number;
@@ -226,7 +226,7 @@ export const bucketStats = query({
     >();
     for (const e of all) {
       if (e.status === "pending" || e.status === "crash") continue;
-      const key = `${e.bucket.niche}|${e.bucket.format}|${e.bucket.priceTier}|${e.bucket.channel}`;
+      const key = `${e.bucket.niche}|${e.bucket.category}|${e.bucket.priceTier}|${e.bucket.channel}`;
       const cur = map.get(key) ?? {
         bucket: e.bucket,
         conversions: 0,

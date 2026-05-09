@@ -6,7 +6,7 @@ const lessonScope = v.union(
   v.object({
     kind: v.literal("bucket"),
     niche: v.string(),
-    format: v.string(),
+    category: v.string(),
     priceTier: v.string(),
     channel: v.string(),
   }),

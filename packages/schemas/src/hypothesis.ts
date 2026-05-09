@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BucketSchema, DeliverableKindSchema } from "./common.js";
+import { BucketSchema, MarketplaceSchema } from "./common.js";
 
 export const CopySchema = z.object({
   headline: z.string().max(80),
@@ -9,11 +9,19 @@ export const CopySchema = z.object({
 });
 export type Copy = z.infer<typeof CopySchema>;
 
-export const DeliverableSchema = z.object({
-  kind: DeliverableKindSchema,
-  spec: z.unknown(),
+/**
+ * Source product scouted on a Chinese marketplace (P8.6 fills this in).
+ * `scrapedImageStorageIds` are Convex File Storage IDs for the original
+ * product photos; AI Gateway re-skins them into ad creatives in P8.8.
+ */
+export const ProductSourceSchema = z.object({
+  marketplace: MarketplaceSchema,
+  url: z.string().url(),
+  originalTitle: z.string().min(1).max(300),
+  originalPriceUsd: z.number().min(0).max(1000),
+  scrapedImageStorageIds: z.array(z.string()).max(10),
 });
-export type Deliverable = z.infer<typeof DeliverableSchema>;
+export type ProductSource = z.infer<typeof ProductSourceSchema>;
 
 export const TrafficPlanSchema = z.object({
   channel: z.string(),
@@ -30,8 +38,12 @@ export const HypothesisSchema = z.object({
   parentId: z.string().nullable(),
   bucket: BucketSchema,
   copy: CopySchema,
+  // Listed retail price the storefront charges (USD, integer cents-resolution).
   price: z.number().int().min(1).max(99),
-  deliverable: DeliverableSchema,
+  // Set after the scout step (P8.6); null at proposal time.
+  productSource: ProductSourceSchema.nullable(),
+  // Set after the image-gen step (P8.8); empty until then.
+  adCreativeStorageIds: z.array(z.string()).max(5),
   trafficPlan: TrafficPlanSchema,
   rationale: z.string().min(1).max(500),
 });
