@@ -10,18 +10,20 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 5. Step 4 — `packages/bandit`
 6. Step 5 — `packages/deliverables`
 7. Step 6 — `packages/prompts`
-8. Step 7 — `packages/auth` (jose HS256, mintToken, verifyToken, requireIdentity)
+8. Step 7 — `packages/auth`
+9. Step 8 — `convex/` (schema, tenants, experiments, ledger [IMMUTABLE], lessons, budget [IMMUTABLE], auditLog, system, http; vendored identity check)
 
 ## In progress
-- Step 8: convex/
+- Step 9: apps/parent-agent (+ program.md)
 
 ## Next
-9. apps/parent-agent (+ program.md)
 10. apps/storefronts
 11. apps/dashboard
 
 ## Notes
 - Stack pins: Node 24, TS 6.0, Next.js 16, pnpm 11, ESM only
 - Hard invariants in AGENTS.md must hold
+- Identity vendored into `convex/_lib/identity.ts` to avoid workspace-resolution risk
+- Added `budget-watchdog` 6th identity (kill-switch only)
 - pnpm install NOT yet run; run after step 11
-- Token passed in mutation args (`token: v.string()`) since Convex doesn't natively verify HS256
+- `convex/_generated/` populated by `pnpm --filter @autoresearch/convex codegen`

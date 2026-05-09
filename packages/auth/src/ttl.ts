@@ -18,6 +18,7 @@ export const TTL_SECONDS_BY_ROLE: Record<IdentityRole, number> = {
   "refund-worker": 24 * 60 * 60,
   dashboard: 7 * 24 * 60 * 60,
   admin: 30 * 24 * 60 * 60,
+  "budget-watchdog": 24 * 60 * 60,
 };
 
 export function defaultTtl(role: IdentityRole): number {

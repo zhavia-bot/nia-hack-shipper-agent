@@ -11,6 +11,9 @@ export const IdentityRoleSchema = z.enum([
   "refund-worker",
   "dashboard",
   "admin",
+  // Budget kill-switch only: can set killSwitchHalt = true, cannot raise
+  // caps, cannot mutate any other table. See `convex/budget.ts`.
+  "budget-watchdog",
 ]);
 export type IdentityRole = z.infer<typeof IdentityRoleSchema>;
 
