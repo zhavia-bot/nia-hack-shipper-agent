@@ -110,6 +110,34 @@ All P1–P6 phases shipped. Multi-tenant SaaS topology in place: Clerk-authentic
 17. Mint-tokens.ts self-contained via jose — `39bfff7`
 18. Dashboard public landing for hackathon judges (`/`) + console moved to `/console` — `e99cc4c`
 
+## P8 — TikTok-Shop pivot for hackathon submission (2026-05-09)
+
+Pivot from "agent generates a digital product" → "agent hypothesis-tests real physical products on TikTok Shop with a demo-safe refund-all settlement". The artifact is the upstream conversion signal, not the order.
+
+- **P8.1 — schema pivot, physical products** (commit `dc615b0`). `Hypothesis` shape gains `productSource` (Temu/Alibaba marketplace + scrape candidates) and `adCreativeStorageIds`; loses `deliverableKind`. `format` → `category` rename (PhysicalCategorySchema). Tenants table denormalizes `displayCopy` + `displayPriceUsd` so the storefront renders from a single `bySubdomain` query.
+- **P8.2 — strip Exa** (commit `0f1d75c`). Reacher + Nia are sufficient for niche discovery; Exa retired from BYOK + run-context + tools + landing copy.
+- **P8.3 — Nia MCP tool** (commit `2356583`). Mirror of `reacher.ts` pattern using `@modelcontextprotocol/sdk` + `StreamableHTTPClientTransport`. Wraps `nia_deep_research_agent` (Oracle) and `nia_package_search_hybrid` (corpus).
+- **P8.4 — Reacher into propose** (commit `5c40f93`). `fetchNichePool()` calls Reacher's TikTok-Shop trending endpoint; `SEED_NICHES` retired. Backstop is a single-entry array — if you see it, the live signal is broken.
+- **P8.5 — Nia Oracle into propose + lessons** (commit `eae6ac6`). `fetchNiaPriors(nichePool)` adds research grounding to each generation's prompt. `indexLessonsToNia()` fire-and-forget pushes distilled lessons back into the Nia corpus for future generations.
+- **P8.6 — Temu scout step** (commit `1787ef2`). `scoutProductSource()` runs `agent-browser` inside Vercel Sandbox against Temu's search results, then has Sonnet pick a single product from the accessibility tree.
+- **P8.7 — persist scraped images** (commit `97a6267`). `persistScrapedImages()` downloads candidate URLs into Convex File Storage so storefront + image-gen have permanent references.
+- **P8.8 — re-skin scraped photos via FLUX** (commit `31e9c34`). `generateAdCreatives()` runs FLUX 2 (Gemini 3 Pro Image fallback) to turn one scraped product photo into hero + gallery shots. Stored to Convex File Storage alongside the scrapes.
+- **P8.9 — storefronts render hypothesis copy + creatives** (commit `21feea6`). Tenants page rewritten to render `tenant.displayCopy` + `tenant.adCreativeStorageIds` end-to-end; the deliver route is stubbed `410 Gone`.
+- **P8.10 — refund-all settlement + apology email** (commit `6b67ae2`). Storefront `stripe-webhook` POST adds `settleDemoOrder()` that refunds the just-completed Checkout via the connected account and emails the customer via the operator's Resend BYOK. New `tenants:ownerSettlementInfo` query (stripe-webhook identity only).
+- **P8.11 — operator cancel + force-refund** (commit `6b6f9fa`). New `tenants:cancelByOwner` + `tenants:operatorContext` (requireUser + ownership). Two API routes (`/api/operator/cancel/[subdomain]`, `/api/operator/force-refund/[subdomain]`) with server-side ownership re-check. Force-refund sweeps PaymentIntents on the connected account by `metadata.tenantSubdomain` and catches `charge_already_refunded` as `skipped`. New `TenantsPanel` component on `/console`.
+- **P8.12 — explore/exploit slider** (commit `b791288`). Per-user `exploitFraction` field (default 0.7). Slider on `/console/settings/keys`. propose() reads via `users:runSettingsForUser` at the top of each generation; near/far split of the explore remainder stays 2:1.
+- **P8.13 — realtime agent log stream** (commit `a26864d`). New `agentEvents` table (per-user, indexed by_user_time). `recordAgentEvent()` helper wired into propose start, setupExperiment, scout found, tenant live, measure verdict, generation end, crash. New `AgentLogStream` component on `/console` tails via Convex `useQuery`.
+- **P8.14 — anonymized network ticker on landing** (commit `aa295e4`). New public `dashboard:globalAnonStats` (no token). New `LiveRevenueTicker` with green-pulse animation when grossCharged ticks up; replaces the old per-platform DollarTicker on `/`.
+- **P8.15 — landing rewrite for hackathon** (commit `13b2dd8`). Hero leads with TikTok-Shop hypothesis testing; loop expanded to five phases (Hypothesize/Scout/Ship/Measure/Settle); new operator-controls section calls out the live stream + kill/refund + slider; stack copy names Reacher and Nia explicitly.
+- **P8.16 — AGENTS.md + STATUS.md narrative refresh** (this commit). Shape paragraph reframed for the pivot (TikTok Shop, demo-safe settlement, four-key BYOK list); paths updated from `apps/parent-agent/*` to `apps/dashboard/agent/*` (P7.8 collapse already happened); operator-controls + demo-safe-settlement sections added.
+
+### Pre-existing tech debt (not P8 work)
+
+- `apps/dashboard/agent/budget.ts` and `revenue.ts` typecheck errors against newer Convex generic types. Both are immutable substrate; deferred.
+- `apps/dashboard/agent/tools/llm.ts` AI SDK schema generic mismatch (also pre-P8).
+- `apps/dashboard/agent/tools/stripe.ts` Stripe `apiVersion` literal mismatch ("clover" vs older "basil"). Cosmetic; runtime fine.
+- `convex/_generated/api.d.ts` is gitignored; running `convex codegen` (or `convex dev`) regenerates the entries for new modules (`agentEvents` was hand-stitched locally for typecheck after P8.13).
+
 ## Notes
 
 - Identity is now RS256. `packages/auth/src/secret.ts` exports `loadPrivateKey()` / `loadPublicKey()`. `convex/_lib/identity.ts` reads `AUTH_JWT_PUBLIC_KEY` (base64 PEM) from Convex env, decodes via `atob` (no Buffer in Convex runtime).

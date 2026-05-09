@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Multi-tenant SaaS for autonomous money-making agents. Each user signs up, connects their own Stripe account (Standard via Connect), brings their own API keys (BYOK), and the agent runs on their behalf. Terminal goal per user: **maximize $ in their Stripe balance**.
+Multi-tenant SaaS for autonomous TikTok-Shop hypothesis-testing agents. Each user signs up, connects their own Stripe account (Standard via Connect), brings their own API keys (BYOK), and the agent runs on their behalf. Terminal goal per user: **maximize the upstream conversion signal on their Stripe balance — every paid order auto-refunds, the demo is the artifact**.
 
 ## Shape (one paragraph)
 
-One TS monorepo. A Vercel **Workflow** (`runGeneration`, `'use workflow'`) is the parent — one invocation per generation, fired by a cron trigger. It fans out N≤8 child workflows (`runHypothesis`, `'use workflow'`); each one ships a tenant on a multi-tenant Next.js app on Vercel (subdomain-routed), creates a Stripe Checkout-Session-driven storefront on the **user's connected Stripe account** (no platform fee), drives traffic, then `sleep('60m')` (durable), then measures. The body of each workflow is composed of `'use step'` units (`hypothesis-steps.ts`) which are idempotent + retryable. Convex is canonical state (users, tenants, experiments, ledger, lessons, budget) and the realtime backbone for the human dashboard. Every user-scoped row carries `userId`; service mutations take an explicit `actingUserId` while human mutations resolve identity via `requireUser(ctx)` (Clerk OIDC). Stripe Connect webhooks land at Next.js API routes and forward into Convex. **All LLM + image-gen calls route through Vercel AI Gateway** with a single user-provided `aiGatewayKey`. External sense organs: Reacher MCP, Nia MCP, Exa. External hands: Browserbase, Resend, Cloudflare API. BYOK keys are re-hydrated at the top of every workflow step via `loadRunKeys(actingUserId)` from `apps/parent-agent/src/run-context.ts` (AsyncLocalStorage doesn't survive durable step replay).
+One TS monorepo. A Vercel **Workflow** (`runGeneration`, `'use workflow'`) is the parent — one invocation per generation, fired by a cron trigger or the dashboard "Run a generation" button. It fans out N≤8 child workflows (`runHypothesis`, `'use workflow'`); each one **scouts** a real product on Temu/Alibaba via `agent-browser` inside `@vercel/sandbox`, **re-skins** the scraped photos into ad creatives via FLUX 2 (Gemini 3 Pro Image fallback), **ships** a tenant on a multi-tenant Next.js app on Vercel (subdomain-routed under `*.team.vercel.app`), mints a Stripe Checkout Session on the **user's connected Stripe account** (no platform fee), drives traffic, then `sleep('60m')` (durable), then measures. Every paid Checkout completion **auto-refunds** via Stripe Connect and emails the customer an apology via the operator's Resend key — the agent never has inventory. The body of each workflow is composed of `'use step'` units (`hypothesis-steps.ts`) which are idempotent + retryable. Convex is canonical state (users, tenants, experiments, ledger, lessons, budget, agentEvents) and the realtime backbone for the human dashboard. Every user-scoped row carries `userId`; service mutations take an explicit `actingUserId` while human mutations resolve identity via `requireUser(ctx)` (Clerk OIDC). Stripe Connect webhooks land at Next.js API routes and forward into Convex. **All LLM + image-gen calls route through Vercel AI Gateway** with a single user-provided `aiGatewayKey`. External sense organs: Reacher MCP (live TikTok-Shop niche feed), Nia MCP (deep-research priors + lesson corpus). External hands: Vercel Sandbox + agent-browser (scout), Resend (apology email). BYOK keys are re-hydrated at the top of every workflow step via `loadRunKeys(actingUserId)` from `apps/dashboard/agent/run-context.ts` (AsyncLocalStorage doesn't survive durable step replay).
 
 ## Source of truth
 
@@ -22,7 +22,7 @@ One TS monorepo. A Vercel **Workflow** (`runGeneration`, `'use workflow'`) is th
 ## Hard invariants (do not violate)
 
 1. **Immutable substrate** — agent must never edit:
-   - `apps/parent-agent/src/budget.ts`, `apps/parent-agent/src/revenue.ts`
+   - `apps/dashboard/agent/budget.ts`, `apps/dashboard/agent/revenue.ts`
    - `convex/ledger.ts`, `convex/budget.ts`
 
    These are the Karpathy `prepare.py` analog. CODEOWNERS gates them.
@@ -47,8 +47,20 @@ One TS monorepo. A Vercel **Workflow** (`runGeneration`, `'use workflow'`) is th
 
 ## BYOK split
 
-**Platform** (operator pays once, all users share): Stripe (platform of-record for Connect), Convex, Vercel (hosting + workflows), Clerk, JWT keypair, apex domain.
+**Platform** (operator pays once, all users share): Stripe (platform of-record for Connect), Convex, Vercel (hosting + workflows + Sandbox CPU for the scout), Clerk, JWT keypair, apex domain (`*.team.vercel.app`).
 
-**BYOK** (user provides via `/console/settings/keys`): `aiGatewayKey` (covers all LLM + image gen via Vercel AI Gateway), `exaKey`, `browserbaseKey`, `resendKey`, `reacherKey`, `niaKey`, `cloudflareKey`. No more separate Anthropic / OpenAI / FAL keys — Gateway covers all three.
+**BYOK** (user provides via `/console/settings/keys`): `aiGatewayKey` (covers all LLM + image gen via Vercel AI Gateway), `resendKey` (apology email on demo refund), `reacherKey` (TikTok-Shop niche feed), `niaKey` (deep-research priors + lesson corpus). Four keys, all single-purpose.
 
-The agent runtime never reads any of these BYOK values from `process.env`. They're loaded per workflow step via `loadRunKeys(actingUserId)` from `apps/parent-agent/src/run-context.ts`.
+The agent runtime never reads any of these BYOK values from `process.env`. They're loaded per workflow step via `loadRunKeys(actingUserId)` from `apps/dashboard/agent/run-context.ts`.
+
+## Operator controls (P8.11–P8.13)
+
+The console exposes three first-class operator surfaces:
+
+- **Live agent stream** (`agentEvents` table + `AgentLogStream`) — every workflow decision (generation start, scout found, tenant live, measured ROAS, settled refund, crash) writes one narrative row keyed on `userId`. The console subscribes via `useQuery` and tails it without polling.
+- **Per-tenant kill + force-refund** (`tenants:cancelByOwner`, `/api/operator/force-refund/[subdomain]`) — owner-only, ownership re-checked server-side. Force-refund sweeps every paid PaymentIntent on the connected account whose `metadata.tenantSubdomain` matches and refunds via the Stripe-Account header.
+- **Explore/exploit slider** (`users.exploitFraction`) — single number in [0, 1] persisted on the user row. The agent reads it via `users:runSettingsForUser` at the top of every generation and derives the bandit slot mix from it. Default 0.7 preserves the original 70/20/10 split.
+
+## Demo-safe settlement (P8.10)
+
+Every `checkout.session.completed` with `payment_status === "paid"` triggers `settleDemoOrder` in `apps/storefronts/app/api/stripe-webhook/route.ts`: the storefront refunds the `payment_intent` on the connected account and (if the operator has a Resend key) sends a short apology naming the agent. The agent has no inventory and never will — the conversion signal is the artifact. Settlement failures are logged to `auditLog` and never re-thrown so the webhook ack stays clean.
