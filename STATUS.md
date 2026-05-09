@@ -22,7 +22,8 @@ We're pivoting from "single-operator agent" → "multi-tenant SaaS where any use
   - new `mine*` queries (tenants, experiments, ledger) for Clerk-authenticated console reads
   - storefront stripe-webhook updated: routes paid/refund through `tenantSubdomain` from session/charge metadata; missing → audit log + skip
   - **deferred**: parent-agent caller updates (will land in P3 when dashboard drives runs); budget/lessons/agentRuns scoping (not user-scoped for hackathon)
-- **P3** — BYOK settings page + agent runtime reads keys from user row
+- **P3.1 — BYOK settings page** (commit `97c2d81`). `/console/settings/keys` with set/missing chips per provider; patches via `users:updateApiKeys`. Header link from `/console`.
+- **P3.2** — agent runtime reads keys from user row instead of process.env
 - **P4** — packages/connect + dashboard onboarding UI + per-tenant Stripe factory
 - **P5** — Connect webhook endpoint
 - **P6** — AGENTS.md cleanup, basic-auth removal, landing copy
