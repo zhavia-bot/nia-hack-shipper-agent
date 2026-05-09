@@ -10,7 +10,8 @@
     "skipLibCheck": true,
     "noEmit": true,
     "allowJs": false,
-    "jsx": "preserve"
+    "jsx": "preserve",
+    "types": ["node"]
   },
   "include": ["./**/*.ts"],
   "exclude": ["./_generated"]
