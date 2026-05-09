@@ -1,5 +1,5 @@
-import OpenAI from "openai";
-import { fal } from "@fal-ai/client";
+import { experimental_generateImage as generateImage_ai } from "ai";
+import { createGateway } from "@ai-sdk/gateway";
 import { createLogger } from "@autoresearch/shared";
 import { reportSpend } from "../budget.js";
 import { getKey } from "../run-context.js";
@@ -7,31 +7,28 @@ import { getKey } from "../run-context.js";
 const log = createLogger("parent-agent.images");
 
 /**
- * Pinned snapshot per `docs/stack.md` §4.7. gpt-image-2 defaults drift;
- * we pin the date to keep behavior reproducible across re-runs.
+ * Both primary and fallback route through Vercel AI Gateway, billed to
+ * the user's `aiGatewayKey`. No direct OpenAI / fal.ai SDK dependency.
+ *
+ * Primary: Black Forest Labs FLUX 2 (Flex) — fastest, cheapest.
+ * Fallback: Google Gemini 3 Pro Image (Nano Banana Pro) — used on policy
+ * or rate-limit errors from the primary.
+ *
+ * Model IDs above are AI Gateway-routed slugs. Verify availability via
+ * `gateway.getAvailableModels()` if a model rejects unknown.
  */
-export const GPT_IMAGE_MODEL = "gpt-image-2-2026-04-21";
-export const FLUX_FAL_PATH = "fal-ai/flux-pro/v2";
+export const PRIMARY_IMAGE_MODEL = "bfl/flux-2-flex";
+export const FALLBACK_IMAGE_MODEL = "google/gemini-3-pro-image";
 
-// Per-run clients — keyed by the BYOK key so concurrent runs for
-// different users don't share a singleton.
-const openaiClients = new Map<string, OpenAI>();
-function openai(): OpenAI {
-  const key = getKey("openai");
-  let client = openaiClients.get(key);
-  if (!client) {
-    client = new OpenAI({ apiKey: key });
-    openaiClients.set(key, client);
+const gatewayCache = new Map<string, ReturnType<typeof createGateway>>();
+function gatewayForCurrent(): ReturnType<typeof createGateway> {
+  const apiKey = getKey("aiGateway");
+  let gw = gatewayCache.get(apiKey);
+  if (!gw) {
+    gw = createGateway({ apiKey });
+    gatewayCache.set(apiKey, gw);
   }
-  return client;
-}
-
-let lastFalKey: string | null = null;
-function ensureFal(): void {
-  const key = getKey("fal");
-  if (lastFalKey === key) return;
-  fal.config({ credentials: key });
-  lastFalKey = key;
+  return gw;
 }
 
 export type ImagePurpose = "hero" | "cover" | "ad_background";
@@ -45,102 +42,87 @@ export interface GenerateImageArgs {
 }
 
 export interface GeneratedImage {
+  /** Data URL or signed URL — caller MUST persist to Convex File Storage. */
   url: string;
-  provider: "openai_gpt_image_2" | "fal_flux2_pro";
+  provider: "flux_2_flex" | "gemini_3_pro_image";
   costUsd: number;
 }
 
 /**
- * Try gpt-image-2 first; on a content-policy or rate-limit error fall
- * back to FLUX 2 Pro via fal. Budget cost is reported into the
- * experiment's reservation BEFORE returning the URL — this is the asset
- * cost guard from `docs/stack.md` §4.7.
- *
- * The returned URL is the provider's expiring URL. The CALLER must
- * download and persist it to Convex File Storage (see `tools/storage.ts`)
- * before any tenant row references it.
+ * Generate an image via AI Gateway. On policy/rate-limit error from the
+ * primary model, fall back to the secondary model. Budget cost reported
+ * into the reservation BEFORE returning.
  */
 export async function generateImage(
-  args: GenerateImageArgs
+  args: GenerateImageArgs,
 ): Promise<GeneratedImage> {
   const size = args.size ?? "1024x1024";
   try {
-    const r = await openai().images.generate({
-      model: GPT_IMAGE_MODEL,
+    const out = await runModel({
+      model: PRIMARY_IMAGE_MODEL,
       prompt: args.prompt,
-      n: 1,
       size,
     });
-    const url = r.data?.[0]?.url;
-    if (!url) throw new Error("openai images.generate returned no URL");
-
-    const cost = estimateGptImageCost(size);
+    const cost = estimateCost(PRIMARY_IMAGE_MODEL, size);
     await reportSpend({ reservationId: args.reservationId, amountUsd: cost });
-    log.info("image generated via gpt-image-2", {
+    log.info("image generated via primary", {
       reservationId: args.reservationId,
       purpose: args.purpose,
+      model: PRIMARY_IMAGE_MODEL,
       size,
       cost,
     });
-    return { url, provider: "openai_gpt_image_2", costUsd: cost };
+    return { url: out, provider: "flux_2_flex", costUsd: cost };
   } catch (err) {
     if (!isPolicyOrRateLimitError(err)) throw err;
-    log.warn("gpt-image-2 unavailable, falling back to FLUX 2 Pro", {
+    log.warn("primary image model unavailable, falling back", {
       reservationId: args.reservationId,
       reason: err instanceof Error ? err.message : String(err),
     });
-    return generateViaFlux(args, size);
+    const out = await runModel({
+      model: FALLBACK_IMAGE_MODEL,
+      prompt: args.prompt,
+      size,
+    });
+    const cost = estimateCost(FALLBACK_IMAGE_MODEL, size);
+    await reportSpend({ reservationId: args.reservationId, amountUsd: cost });
+    return { url: out, provider: "gemini_3_pro_image", costUsd: cost };
   }
 }
 
-async function generateViaFlux(
-  args: GenerateImageArgs,
-  size: ImageSize
-): Promise<GeneratedImage> {
-  ensureFal();
-  const result = await fal.run(FLUX_FAL_PATH, {
-    input: { prompt: args.prompt, image_size: mapSizeForFlux(size) },
+async function runModel(opts: {
+  model: string;
+  prompt: string;
+  size: ImageSize;
+}): Promise<string> {
+  const gw = gatewayForCurrent();
+  const { image } = await generateImage_ai({
+    model: gw.imageModel(opts.model),
+    prompt: opts.prompt,
+    size: opts.size,
+    n: 1,
   });
-  const url = (result as any)?.data?.images?.[0]?.url;
-  if (!url) throw new Error("fal flux2 returned no image URL");
-  const cost = 0.055;
-  await reportSpend({ reservationId: args.reservationId, amountUsd: cost });
-  return { url, provider: "fal_flux2_pro", costUsd: cost };
+  // AI SDK returns base64 + media type; surface as a data URL so callers
+  // can fetch + persist uniformly with provider-signed URLs.
+  return `data:${image.mediaType};base64,${image.base64}`;
 }
 
 function isPolicyOrRateLimitError(err: unknown): boolean {
-  if (err instanceof OpenAI.APIError) {
-    return (
-      err.status === 400 ||
-      err.status === 429 ||
-      err.code === "content_policy_violation"
-    );
-  }
-  return false;
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    msg.includes("content_policy") ||
+    msg.includes("rate limit") ||
+    msg.includes("429") ||
+    msg.includes("safety")
+  );
 }
 
-function estimateGptImageCost(size: ImageSize): number {
-  // Approximate per-image USD cost per `docs/stack.md` §4.7.
-  switch (size) {
-    case "1024x1024":
-      return 0.04;
-    case "1024x1536":
-    case "1536x1024":
-      return 0.1;
-    case "2048x2048":
-      return 0.35;
-  }
-}
-
-function mapSizeForFlux(size: ImageSize): string {
-  switch (size) {
-    case "1024x1024":
-      return "square_hd";
-    case "1024x1536":
-      return "portrait_4_3";
-    case "1536x1024":
-      return "landscape_4_3";
-    case "2048x2048":
-      return "square_hd";
-  }
+function estimateCost(model: string, size: ImageSize): number {
+  // Rough per-image USD per Gateway pricing (verify via /v1/models). FLUX
+  // Flex is the budget tier; Gemini 3 Pro Image is more expensive.
+  const base = model === FALLBACK_IMAGE_MODEL ? 0.04 : 0.02;
+  const sizeMult =
+    size === "2048x2048" ? 4 : size === "1024x1024" ? 1 : 1.5;
+  return base * sizeMult;
 }

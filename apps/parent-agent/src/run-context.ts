@@ -19,12 +19,10 @@ import { convexClient } from "./tools/convex-client.js";
 export interface RunKeys {
   aiGateway: string | null;
   exa: string | null;
-  openai: string | null;
   browserbase: string | null;
   resend: string | null;
   reacher: string | null;
   nia: string | null;
-  fal: string | null;
   cloudflare: string | null;
 }
 

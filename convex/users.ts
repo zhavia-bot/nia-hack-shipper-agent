@@ -172,12 +172,10 @@ export const updateApiKeys = mutation({
   args: {
     aiGatewayKey: v.optional(v.string()),
     exaKey: v.optional(v.string()),
-    openaiKey: v.optional(v.string()),
     browserbaseKey: v.optional(v.string()),
     resendKey: v.optional(v.string()),
     reacherKey: v.optional(v.string()),
     niaKey: v.optional(v.string()),
-    falKey: v.optional(v.string()),
     cloudflareKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -205,12 +203,10 @@ export const keysForUser = query({
     return {
       aiGateway: u.aiGatewayKey ?? null,
       exa: u.exaKey ?? null,
-      openai: u.openaiKey ?? null,
       browserbase: u.browserbaseKey ?? null,
       resend: u.resendKey ?? null,
       reacher: u.reacherKey ?? null,
       nia: u.niaKey ?? null,
-      fal: u.falKey ?? null,
       cloudflare: u.cloudflareKey ?? null,
     };
   },
@@ -228,12 +224,10 @@ export const apiKeyStatus = query({
     return {
       aiGateway: !!user.aiGatewayKey,
       exa: !!user.exaKey,
-      openai: !!user.openaiKey,
       browserbase: !!user.browserbaseKey,
       resend: !!user.resendKey,
       reacher: !!user.reacherKey,
       nia: !!user.niaKey,
-      fal: !!user.falKey,
       cloudflare: !!user.cloudflareKey,
     };
   },

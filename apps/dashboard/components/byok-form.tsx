@@ -9,12 +9,10 @@ type KeyField = {
   arg:
     | "aiGatewayKey"
     | "exaKey"
-    | "openaiKey"
     | "browserbaseKey"
     | "resendKey"
     | "reacherKey"
     | "niaKey"
-    | "falKey"
     | "cloudflareKey";
   label: string;
   hint: string;
@@ -30,11 +28,6 @@ const FIELDS = {
     arg: "exaKey",
     label: "Exa",
     hint: "Web search sense organ for niche discovery",
-  },
-  openai: {
-    arg: "openaiKey",
-    label: "OpenAI (gpt-image-2)",
-    hint: "sk-... — only needed if AI Gateway doesn't cover gpt-image-2",
   },
   browserbase: {
     arg: "browserbaseKey",
@@ -55,11 +48,6 @@ const FIELDS = {
     arg: "niaKey",
     label: "Nia",
     hint: "Codebase grounding for the agent",
-  },
-  fal: {
-    arg: "falKey",
-    label: "fal.ai",
-    hint: "FLUX 2 Pro fallback when OpenAI image gen rate-limits",
   },
   cloudflare: {
     arg: "cloudflareKey",
