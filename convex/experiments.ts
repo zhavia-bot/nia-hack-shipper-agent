@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
 import { requireIdentity } from "./_lib/identity.js";
+import { requireUser } from "./users.js";
 
 const bucketValidator = v.object({
   niche: v.string(),
@@ -20,6 +21,7 @@ const experimentStatus = v.union(
 export const create = mutation({
   args: {
     token: v.string(),
+    actingUserId: v.id("users"),
     hypothesisId: v.string(),
     generation: v.number(),
     parentId: v.optional(v.string()),
@@ -29,6 +31,7 @@ export const create = mutation({
   handler: async (ctx, args) => {
     await requireIdentity(args.token, ["agent"]);
     return ctx.db.insert("experiments", {
+      userId: args.actingUserId,
       hypothesisId: args.hypothesisId,
       generation: args.generation,
       parentId: args.parentId,
@@ -143,9 +146,21 @@ export const metrics = query({
 });
 
 export const byStatus = query({
-  args: { token: v.string(), status: experimentStatus },
-  handler: async (ctx, { token, status }) => {
+  args: {
+    token: v.string(),
+    status: experimentStatus,
+    actingUserId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, { token, status, actingUserId }) => {
     await requireIdentity(token, ["agent", "dashboard"]);
+    if (actingUserId) {
+      return ctx.db
+        .query("experiments")
+        .withIndex("by_user_status", (q) =>
+          q.eq("userId", actingUserId).eq("status", status),
+        )
+        .collect();
+    }
     return ctx.db
       .query("experiments")
       .withIndex("by_status", (q) => q.eq("status", status))
@@ -154,13 +169,38 @@ export const byStatus = query({
 });
 
 export const byGeneration = query({
-  args: { token: v.string(), generation: v.number() },
-  handler: async (ctx, { token, generation }) => {
+  args: {
+    token: v.string(),
+    generation: v.number(),
+    actingUserId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, { token, generation, actingUserId }) => {
     await requireIdentity(token, ["agent", "dashboard"]);
+    if (actingUserId) {
+      return ctx.db
+        .query("experiments")
+        .withIndex("by_user_generation", (q) =>
+          q.eq("userId", actingUserId).eq("generation", generation),
+        )
+        .collect();
+    }
     return ctx.db
       .query("experiments")
       .withIndex("by_generation", (q) => q.eq("generation", generation))
       .collect();
+  },
+});
+
+/** Human-side: list the current Clerk user's experiments for the console. */
+export const mine = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    return ctx.db
+      .query("experiments")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .take(50);
   },
 });
 

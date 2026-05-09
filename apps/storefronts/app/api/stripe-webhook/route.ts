@@ -67,12 +67,23 @@ export async function POST(req: NextRequest) {
         }
 
         if (s.payment_status === "paid") {
+          const tenantSubdomain = s.metadata?.["tenantSubdomain"];
+          if (!tenantSubdomain) {
+            await cx.mutation(api.auditLog.record, {
+              token,
+              kind: "stripe.checkout_paid_no_tenant_subdomain",
+              stripeEventId: event.id,
+              experimentId,
+              payload: { sessionId: s.id },
+            });
+            break;
+          }
           await cx.mutation(api.ledger.recordCharge, {
             token,
             stripeEventId: event.id,
             amountUsd: centsToUsd(s.amount_total ?? 0),
             experimentId,
-            tenantSubdomain: s.metadata?.["tenantSubdomain"] ?? undefined,
+            tenantSubdomain,
             paymentStatus: s.payment_status,
           });
         } else {
@@ -94,12 +105,23 @@ export async function POST(req: NextRequest) {
         const experimentId = (s.client_reference_id ??
           s.metadata?.["experimentId"]) as string | undefined;
         if (!experimentId) break;
+        const tenantSubdomain = s.metadata?.["tenantSubdomain"];
+        if (!tenantSubdomain) {
+          await cx.mutation(api.auditLog.record, {
+            token,
+            kind: "stripe.async_paid_no_tenant_subdomain",
+            stripeEventId: event.id,
+            experimentId,
+            payload: { sessionId: s.id },
+          });
+          break;
+        }
         await cx.mutation(api.ledger.recordCharge, {
           token,
           stripeEventId: event.id,
           amountUsd: centsToUsd(s.amount_total ?? 0),
           experimentId,
-          tenantSubdomain: s.metadata?.["tenantSubdomain"] ?? undefined,
+          tenantSubdomain,
           paymentStatus: "paid",
         });
         break;
@@ -122,11 +144,22 @@ export async function POST(req: NextRequest) {
         const c = event.data.object as Stripe.Charge;
         const refunded = (c.amount_refunded ?? 0) - (c.amount ?? 0);
         const amount = Math.abs(refunded > 0 ? refunded : c.amount_refunded ?? 0);
+        const tenantSubdomain = c.metadata?.["tenantSubdomain"];
+        if (!tenantSubdomain) {
+          await cx.mutation(api.auditLog.record, {
+            token,
+            kind: "stripe.refund_no_tenant_subdomain",
+            stripeEventId: event.id,
+            payload: { chargeId: c.id, amount },
+          });
+          break;
+        }
         await cx.mutation(api.ledger.recordRefund, {
           token,
           stripeEventId: event.id,
           amountUsd: centsToUsd(amount),
           chargeId: c.id,
+          tenantSubdomain,
         });
         break;
       }

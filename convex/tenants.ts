@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
 import { requireIdentity } from "./_lib/identity.js";
+import { requireUser } from "./users.js";
 
 const tenantStatus = v.union(
   v.literal("live"),
@@ -15,9 +16,15 @@ const deliverableKind = v.union(
   v.literal("zip")
 );
 
+/**
+ * Service-side: agent creates a tenant for a specific human user.
+ * `actingUserId` is the user whose run this is — required so multi-tenant
+ * scoping works downstream.
+ */
 export const create = mutation({
   args: {
     token: v.string(),
+    actingUserId: v.id("users"),
     subdomain: v.string(),
     hypothesisId: v.string(),
     experimentId: v.string(),
@@ -40,6 +47,7 @@ export const create = mutation({
     }
 
     return ctx.db.insert("tenants", {
+      userId: args.actingUserId,
       subdomain: args.subdomain,
       hypothesisId: args.hypothesisId,
       experimentId: args.experimentId,
@@ -104,13 +112,23 @@ export const bySubdomain = query({
   },
 });
 
+/** Service callers: scoped to a specific user when actingUserId given. */
 export const byStatus = query({
   args: {
     token: v.string(),
     status: tenantStatus,
+    actingUserId: v.optional(v.id("users")),
   },
-  handler: async (ctx, { token, status }) => {
+  handler: async (ctx, { token, status, actingUserId }) => {
     await requireIdentity(token, ["agent", "dashboard", "admin"]);
+    if (actingUserId) {
+      return ctx.db
+        .query("tenants")
+        .withIndex("by_user_status", (q) =>
+          q.eq("userId", actingUserId).eq("status", status),
+        )
+        .collect();
+    }
     return ctx.db
       .query("tenants")
       .withIndex("by_status", (q) => q.eq("status", status))
@@ -126,5 +144,18 @@ export const byHypothesis = query({
       .query("tenants")
       .withIndex("by_hypothesis", (q) => q.eq("hypothesisId", hypothesisId))
       .first();
+  },
+});
+
+/** Human-side: list the current Clerk user's tenants for the console. */
+export const mine = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    return ctx.db
+      .query("tenants")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .collect();
   },
 });

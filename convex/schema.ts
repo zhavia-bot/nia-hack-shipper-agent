@@ -49,6 +49,7 @@ export default defineSchema({
     .index("by_email", ["email"]),
 
   tenants: defineTable({
+    userId: v.id("users"),
     subdomain: v.string(),
     hypothesisId: v.string(),
     experimentId: v.string(),
@@ -73,9 +74,12 @@ export default defineSchema({
   })
     .index("by_subdomain", ["subdomain"])
     .index("by_hypothesis", ["hypothesisId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_user", ["userId"])
+    .index("by_user_status", ["userId", "status"]),
 
   experiments: defineTable({
+    userId: v.id("users"),
     hypothesisId: v.string(),
     generation: v.number(),
     parentId: v.optional(v.string()),
@@ -104,9 +108,13 @@ export default defineSchema({
   })
     .index("by_status", ["status"])
     .index("by_generation", ["generation"])
-    .index("by_bucket", ["bucket.niche", "bucket.format", "bucket.channel"]),
+    .index("by_bucket", ["bucket.niche", "bucket.format", "bucket.channel"])
+    .index("by_user", ["userId"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_user_generation", ["userId", "generation"]),
 
   ledgerEvents: defineTable({
+    userId: v.id("users"),
     type: v.union(
       v.literal("charge"),
       v.literal("refund"),
@@ -127,7 +135,9 @@ export default defineSchema({
   })
     .index("by_stripe_event", ["stripeEventId"])
     .index("by_experiment", ["experimentId"])
-    .index("by_timestamp", ["timestamp"]),
+    .index("by_timestamp", ["timestamp"])
+    .index("by_user", ["userId"])
+    .index("by_user_time", ["userId", "timestamp"]),
 
   lessons: defineTable({
     generation: v.number(),
