@@ -1,12 +1,19 @@
 "use step";
 
-import type { Hypothesis } from "@autoresearch/schemas";
+import { z } from "zod";
+import {
+  ProductSourceSchema,
+  type Hypothesis,
+  type ProductSource,
+} from "@autoresearch/schemas";
 import { createLogger } from "@autoresearch/shared";
 import { reserveBudget, finalizeBudget, releaseBudget } from "../../budget.js";
 import { measure, type MeasuredOutcome } from "../../revenue.js";
 import { stripe } from "../../tools/stripe.js";
 import { driveTraffic } from "../../tools/traffic.js";
 import { convexClient } from "../../tools/convex-client.js";
+import { agentBrowser } from "../../tools/agent-browser.js";
+import { generateJson, MODEL_SONNET } from "../../tools/llm.js";
 import {
   loadRunKeys,
   withRunContext,
@@ -58,6 +65,83 @@ export async function setupExperiment(h: Hypothesis): Promise<{
       amountUsd: h.trafficPlan.budgetUsd,
     });
     return { experimentId, reservationId };
+  });
+}
+
+/**
+ * Scout a real product from a Chinese marketplace (Temu first, with
+ * Alibaba / 1688 as fallbacks) that matches the hypothesis bucket + copy.
+ * Uses agent-browser inside @vercel/sandbox to fetch the search-results
+ * page, then has Sonnet pick the best match from the accessibility tree
+ * and emit a strict ProductSource shape.
+ *
+ * `scrapedImageStorageIds` is left empty here — P8.7 downloads the
+ * picked product's photos and writes them to Convex File Storage. The
+ * shape is filled in run-hypothesis.ts before shipTenant runs.
+ *
+ * On any failure (sandbox down, parsing fails schema), the step throws;
+ * runHypothesis catches and routes the experiment through rollbackOnCrash.
+ */
+export async function scoutProductSource(
+  h: Hypothesis,
+): Promise<{ productSource: ProductSource }> {
+  return withUserCtx(h.actingUserId, async () => {
+    const query = `${h.bucket.niche} ${h.bucket.category} ${h.copy.headline}`
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120);
+    const searchUrl = `https://www.temu.com/search_result.html?search_key=${encodeURIComponent(query)}`;
+
+    log.info("scouting product", { query, searchUrl });
+    const browse = await agentBrowser.run(
+      [
+        { cmd: "browse", args: [searchUrl, "--json"] },
+      ],
+      { timeoutMs: 90_000 },
+    );
+    const stdout = browse.results[0]?.stdout ?? "";
+    if (!stdout) {
+      throw new Error("agent-browser returned empty stdout for Temu search");
+    }
+
+    const PickSchema = z.object({
+      marketplace: z.literal("temu"),
+      url: z.string().url(),
+      originalTitle: z.string().min(1).max(300),
+      originalPriceUsd: z.number().min(0).max(1000),
+      candidateImageUrls: z.array(z.string().url()).min(1).max(10),
+    });
+    const picked = await generateJson({
+      model: MODEL_SONNET,
+      prompt: {
+        name: "scout-product-source",
+        version: "v1.0.0",
+        system:
+          "You parse one Temu search-results accessibility tree and pick the SINGLE best product match. Output strict JSON only — no prose, no markdown. Pick the most relevant card to the query, with a sane sub-$30 price and at least one product photo URL.",
+        user: `Hypothesis bucket: ${h.bucket.niche} / ${h.bucket.category} / ${h.bucket.priceTier} / ${h.bucket.channel}\nHeadline: ${h.copy.headline}\nTarget price: ~$${h.price}\n\nAccessibility tree from ${searchUrl}:\n${stdout.slice(0, 60_000)}\n\nReturn JSON: { marketplace: "temu", url, originalTitle, originalPriceUsd, candidateImageUrls: [...] }. The url and image urls must be absolute. Keep candidateImageUrls between 1 and 10.`,
+      },
+      schema: PickSchema,
+      maxTokens: 1024,
+    });
+
+    const productSource: ProductSource = ProductSourceSchema.parse({
+      marketplace: picked.marketplace,
+      url: picked.url,
+      originalTitle: picked.originalTitle,
+      originalPriceUsd: picked.originalPriceUsd,
+      // P8.7 downloads from candidateImageUrls and replaces this with
+      // Convex storage IDs. We stash the URLs as-is here so they're
+      // accessible to the next step — schema allows arbitrary strings.
+      scrapedImageStorageIds: picked.candidateImageUrls,
+    });
+
+    log.info("scouted", {
+      url: productSource.url,
+      title: productSource.originalTitle.slice(0, 80),
+      priceUsd: productSource.originalPriceUsd,
+      imgCandidates: picked.candidateImageUrls.length,
+    });
+    return { productSource };
   });
 }
 

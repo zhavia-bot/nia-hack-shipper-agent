@@ -6,6 +6,7 @@ import { BudgetError, createLogger } from "@autoresearch/shared";
 import type { MeasuredOutcome } from "../revenue.js";
 import {
   setupExperiment,
+  scoutProductSource,
   shipTenant,
   kickTraffic,
   measureAndFinalize,
@@ -40,12 +41,19 @@ export async function runHypothesis(h: Hypothesis): Promise<ChildResult> {
     experimentId = setup.experimentId;
     reservationId = setup.reservationId;
 
-    const ship = await shipTenant(h, experimentId);
-    await kickTraffic(h, experimentId, reservationId, ship.subdomain);
+    // P8.6: scout a real Temu/Alibaba/1688 product matching the bucket
+    // before we ship anything. The scouted source is then folded into a
+    // new hypothesis object passed downstream — the LLM proposal does NOT
+    // own productSource (it's set to null at proposal time, P8.1).
+    const scout = await scoutProductSource(h);
+    const hWithSource: Hypothesis = { ...h, productSource: scout.productSource };
+
+    const ship = await shipTenant(hWithSource, experimentId);
+    await kickTraffic(hWithSource, experimentId, reservationId, ship.subdomain);
 
     await sleep(MEASUREMENT_WINDOW);
 
-    const metrics = await measureAndFinalize(h, experimentId, reservationId);
+    const metrics = await measureAndFinalize(hWithSource, experimentId, reservationId);
     return { experimentId, status: "pending", metrics };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
