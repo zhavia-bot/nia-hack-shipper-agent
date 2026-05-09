@@ -2,32 +2,36 @@
 
 Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 
-## Done
-1. AGENTS.md + CLAUDE.md symlink + STATUS.md
-2. Step 1 — Monorepo scaffold
-3. Step 2 — `packages/schemas`
-4. Step 3 — `packages/shared`
-5. Step 4 — `packages/bandit`
-6. Step 5 — `packages/deliverables`
-7. Step 6 — `packages/prompts`
-8. Step 7 — `packages/auth`
-9. Step 8 — `convex/` (schema, tenants, experiments, ledger [IMMUTABLE], lessons, budget [IMMUTABLE], auditLog, system, http; vendored identity check)
-10. Step 9 — `apps/parent-agent` (orchestrator, child, propose/select/lessons, all tools, program.md)
-11. Step 10 — `apps/storefronts` (multi-tenant Next 16, middleware rewrite, /api/checkout, /api/stripe-webhook, /api/deliver/[token], success page, HMAC deliver-token, convex/storage.ts)
-12. Step 11 — `apps/dashboard` (Convex realtime $ ticker + budget/heatmap/experiments + basic-auth gate; convex/dashboard.ts aggregator views)
+## Pivot in progress (2026-05-09)
 
-## Done — full build complete
-All 11 steps committed. `pnpm install` not yet run. No tests/deploy yet.
+We're pivoting from "single-operator agent" → "multi-tenant SaaS where any user signs up and the agent runs against their connected Stripe + their own API keys (BYOK)." See conversation for full plan; no payment from users, no platform fee, ~7hr scope.
 
-## Next (when resumed)
-- `pnpm install` from repo root, then `pnpm --filter @autoresearch/convex codegen` to populate `convex/_generated/`
-- Wire up Tensorlake deploy and Convex/Vercel projects
-- Add tests for bandit + deliverables packages
+### Phase plan
+
+- **P1 — Auth foundation**
+  - [x] P1.1 packages/auth HS256 → RS256 (commit `<P1.1>`). Convex env: `AUTH_JWT_PUBLIC_KEY` set; `AUTH_JWT_SECRET` removed. Service tokens re-minted in `.env.local`. Smoke-tested: `dashboard:netDollars` accepts new RS256 token.
+  - [ ] P1.2 Clerk on apps/dashboard
+  - [ ] P1.3 convex/auth.config.ts (Clerk + service JWT providers)
+  - [ ] P1.4 users table + requireUser helper + Clerk webhook
+- **P2** — userId scoping on tenants/experiments/ledgerEvents/budget/lessons/agentRuns + backfill
+- **P3** — BYOK settings page + agent runtime reads keys from user row
+- **P4** — packages/connect + dashboard onboarding UI + per-tenant Stripe factory
+- **P5** — Connect webhook endpoint
+- **P6** — AGENTS.md cleanup, basic-auth removal, landing copy
+
+### Pre-pivot done
+
+1–12. (See git log for the full build of monorepo + packages + convex + parent-agent + storefronts + dashboard.)
+
+13. Reacher tool fixed (proper auth headers + shop discovery) — `d44500f`
+14. Convex codegen committed + node types — `6db18e7`
+15. Root convex dep + pnpm allowlist + tensorlake optional — `dc1848b`
+16. Storefronts shadcn/CommerCN catalog-density rewrite — `d845971`
+17. Mint-tokens.ts self-contained via jose — `39bfff7`
+18. Dashboard public landing for hackathon judges (`/`) + console moved to `/console` — `e99cc4c`
 
 ## Notes
-- Stack pins: Node 24, TS 6.0, Next.js 16, pnpm 11, ESM only
-- Hard invariants in AGENTS.md must hold
-- Identity vendored into `convex/_lib/identity.ts` to avoid workspace-resolution risk
-- Added `budget-watchdog` 6th identity (kill-switch only)
-- pnpm install NOT yet run; run after step 11
-- `convex/_generated/` populated by `pnpm --filter @autoresearch/convex codegen`
+
+- Identity is now RS256. `packages/auth/src/secret.ts` exports `loadPrivateKey()` / `loadPublicKey()`. `convex/_lib/identity.ts` reads `AUTH_JWT_PUBLIC_KEY` (base64 PEM) from Convex env, decodes via `atob` (no Buffer in Convex runtime).
+- AGENTS.md invariant #8 ("Not Clerk") will be reworded in P6 — Clerk for human sessions, custom JWT for service identities.
+- Hackathon scope: no signup gate, no encryption on stored API keys (plaintext on user row), no platform fee.

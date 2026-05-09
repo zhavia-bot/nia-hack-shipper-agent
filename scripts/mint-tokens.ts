@@ -1,17 +1,17 @@
 /**
- * One-shot helper: mint per-identity JWTs from AUTH_JWT_SECRET and
+ * One-shot helper: mint per-identity JWTs from AUTH_JWT_PRIVATE_KEY and
  * print them in env-var format. Pipe to .env.local.
  *
- *   AUTH_JWT_SECRET=… pnpm tsx scripts/mint-tokens.ts >> .env.local
+ *   AUTH_JWT_PRIVATE_KEY=<base64 PEM> pnpm tsx scripts/mint-tokens.ts >> .env.local
  *
- * Self-contained (uses `jose` directly) so it works without workspace
- * graph resolution. Issuer + alg + per-role TTLs mirror packages/auth.
+ * Self-contained (uses `jose` directly). RS256 — keep parity with
+ * convex/_lib/identity.ts. Issuer + per-role TTLs mirror packages/auth.
  */
-import { SignJWT } from "jose";
+import { SignJWT, importPKCS8 } from "jose";
 import { randomBytes } from "node:crypto";
 
 const ISSUER = "autoresearch-money";
-const ALG = "HS256";
+const ALG = "RS256";
 
 const TTL_SECONDS_BY_ROLE = {
   agent: 60 * 60,
@@ -24,12 +24,15 @@ const TTL_SECONDS_BY_ROLE = {
 
 type Role = keyof typeof TTL_SECONDS_BY_ROLE;
 
-const secretRaw = process.env["AUTH_JWT_SECRET"];
-if (!secretRaw || secretRaw.length < 32) {
-  console.error("AUTH_JWT_SECRET must be set and ≥32 bytes.");
+const privRaw = process.env["AUTH_JWT_PRIVATE_KEY"];
+if (!privRaw) {
+  console.error(
+    "AUTH_JWT_PRIVATE_KEY must be set (base64-encoded PEM PKCS8)."
+  );
   process.exit(1);
 }
-const secret = new TextEncoder().encode(secretRaw);
+const privPem = Buffer.from(privRaw, "base64").toString("utf8");
+const privateKey = await importPKCS8(privPem, ALG);
 
 async function mint(role: Role, subject: string): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
@@ -39,7 +42,7 @@ async function mint(role: Role, subject: string): Promise<string> {
     .setSubject(subject)
     .setIssuedAt(now)
     .setExpirationTime(now + TTL_SECONDS_BY_ROLE[role])
-    .sign(secret);
+    .sign(privateKey);
 }
 
 const roles: { env: string; role: Role; subject: string }[] = [
@@ -54,8 +57,7 @@ const roles: { env: string; role: Role; subject: string }[] = [
 
 const lines: string[] = [
   "",
-  "# === minted by scripts/mint-tokens.ts ===",
-  `AUTH_JWT_SECRET=${secretRaw}`,
+  "# === minted by scripts/mint-tokens.ts (RS256) ===",
 ];
 
 for (const r of roles) {

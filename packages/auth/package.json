@@ -22,6 +22,7 @@
     "jose": "^5.0.0"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "typescript": "^6.0.0"
   }
 }

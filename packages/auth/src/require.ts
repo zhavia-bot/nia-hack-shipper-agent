@@ -1,5 +1,6 @@
 import type { IdentityClaims, IdentityRole } from "@autoresearch/schemas";
 import { IdentityError } from "@autoresearch/shared";
+import type { KeyLike } from "jose";
 import { verifyToken } from "./sign.js";
 
 /**
@@ -16,12 +17,12 @@ import { verifyToken } from "./sign.js";
 export async function requireIdentity(
   token: string | null | undefined,
   allowedRoles: readonly IdentityRole[],
-  secret: Uint8Array
+  publicKey: KeyLike
 ): Promise<IdentityClaims> {
   if (!token) {
     throw new IdentityError("missing identity token");
   }
-  const claims = await verifyToken(token, secret);
+  const claims = await verifyToken(token, publicKey);
   if (!allowedRoles.includes(claims.role)) {
     throw new IdentityError(
       `role ${claims.role} not permitted (need one of: ${allowedRoles.join(", ")})`
@@ -34,8 +35,8 @@ export async function requireIdentity(
 export async function requireAnyIdentity(
   token: string | null | undefined,
   allowedRoles: readonly IdentityRole[],
-  secret: Uint8Array
+  publicKey: KeyLike
 ): Promise<IdentityRole> {
-  const claims = await requireIdentity(token, allowedRoles, secret);
+  const claims = await requireIdentity(token, allowedRoles, publicKey);
   return claims.role;
 }

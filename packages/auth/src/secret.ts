@@ -1,23 +1,34 @@
 /**
- * Load the symmetric HMAC secret from env. We use HS256 because all five
- * identity holders are services we operate (agent / stripe-webhook /
- * refund-worker / dashboard / admin) — there is no third-party verifier
- * that needs a public key. RS256 + JWKS is the path if we ever need to
- * accept tokens minted outside our trust boundary.
+ * Load RS256 keys from env. Both keys are stored base64-encoded PEM:
+ *
+ *   AUTH_JWT_PRIVATE_KEY  — signers (mint-tokens.ts only; never sent to Convex)
+ *   AUTH_JWT_PUBLIC_KEY   — verifiers (Convex env, plus any service that
+ *                           wants to validate a token locally)
+ *
+ * RS256 (vs HS256 originally) so service JWTs can validate through
+ * Convex's auth.config.ts alongside Clerk human sessions, which only
+ * accepts asymmetric algorithms.
  */
-const ENV_KEY = "AUTH_JWT_SECRET";
+import { importPKCS8, importSPKI, type KeyLike } from "jose";
 
-export function loadAuthSecret(env: NodeJS.ProcessEnv = process.env): Uint8Array {
-  const raw = env[ENV_KEY];
-  if (!raw || raw === "REPLACE_ME_with_32_byte_random") {
+const ALG = "RS256";
+
+export async function loadPrivateKey(env: NodeJS.ProcessEnv = process.env): Promise<KeyLike> {
+  const raw = env["AUTH_JWT_PRIVATE_KEY"];
+  if (!raw) {
     throw new Error(
-      `${ENV_KEY} is not set or still at placeholder. Generate via: openssl rand -base64 32`
+      "AUTH_JWT_PRIVATE_KEY is not set. Generate via: openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out priv.pem && base64 -i priv.pem"
     );
   }
-  if (raw.length < 32) {
-    throw new Error(
-      `${ENV_KEY} must be ≥32 bytes for HS256 strength; got ${raw.length}`
-    );
+  const pem = Buffer.from(raw, "base64").toString("utf8");
+  return importPKCS8(pem, ALG);
+}
+
+export async function loadPublicKey(env: NodeJS.ProcessEnv = process.env): Promise<KeyLike> {
+  const raw = env["AUTH_JWT_PUBLIC_KEY"];
+  if (!raw) {
+    throw new Error("AUTH_JWT_PUBLIC_KEY is not set.");
   }
-  return new TextEncoder().encode(raw);
+  const pem = Buffer.from(raw, "base64").toString("utf8");
+  return importSPKI(pem, ALG);
 }

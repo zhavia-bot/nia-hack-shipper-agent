@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, jwtVerify, type KeyLike } from "jose";
 import {
   IdentityClaimsSchema,
   type IdentityClaims,
@@ -8,7 +8,7 @@ import { IdentityError } from "@autoresearch/shared";
 import { defaultTtl } from "./ttl.js";
 
 export const ISSUER = "autoresearch-money";
-const ALG = "HS256";
+const ALG = "RS256";
 
 export interface MintArgs {
   role: IdentityRole;
@@ -16,8 +16,8 @@ export interface MintArgs {
   subject: string;
   /** Override the per-role default TTL. */
   ttlSeconds?: number;
-  /** HMAC secret bytes — get from `loadAuthSecret()` at boot. */
-  secret: Uint8Array;
+  /** RS256 private key — get from `loadPrivateKey()` at boot. */
+  privateKey: KeyLike;
 }
 
 export async function mintToken(args: MintArgs): Promise<string> {
@@ -29,7 +29,7 @@ export async function mintToken(args: MintArgs): Promise<string> {
     .setSubject(args.subject)
     .setIssuedAt(now)
     .setExpirationTime(now + ttl)
-    .sign(args.secret);
+    .sign(args.privateKey);
 }
 
 /**
@@ -39,10 +39,10 @@ export async function mintToken(args: MintArgs): Promise<string> {
  */
 export async function verifyToken(
   token: string,
-  secret: Uint8Array
+  publicKey: KeyLike
 ): Promise<IdentityClaims> {
   try {
-    const { payload } = await jwtVerify(token, secret, {
+    const { payload } = await jwtVerify(token, publicKey, {
       issuer: ISSUER,
       algorithms: [ALG],
     });

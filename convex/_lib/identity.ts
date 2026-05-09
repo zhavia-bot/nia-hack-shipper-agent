@@ -3,19 +3,26 @@
  * `@autoresearch/auth` but local to the convex/ deploy bundle to avoid
  * any concern about workspace-package resolution inside the Convex runtime.
  *
- * Token shape: HS256 JWT, issuer "autoresearch-money", payload includes
+ * Token shape: RS256 JWT, issuer "autoresearch-money", payload includes
  * `role` ∈ {agent, stripe-webhook, refund-worker, dashboard, admin,
- * budget-watchdog}. Secret comes from the AUTH_JWT_SECRET Convex env var
- * (set via `npx convex env set AUTH_JWT_SECRET <32+ bytes>`).
+ * budget-watchdog}. Public key comes from the AUTH_JWT_PUBLIC_KEY Convex
+ * env var (base64-encoded PEM, set via `npx convex env set
+ * AUTH_JWT_PUBLIC_KEY <base64 PEM>`).
+ *
+ * Why RS256 instead of HS256: Convex's first-party auth.config.ts JWT
+ * verification only accepts asymmetric algorithms. Sticking with HS256
+ * would mean the agent/webhooks live outside Convex's auth surface and
+ * we'd have to maintain a parallel auth path. RS256 lets service JWTs
+ * coexist with Clerk human sessions in a single auth.config.ts.
  *
  * IMMUTABLE — every mutation that mutates state imports `requireIdentity`
  * from this file as the first line of its handler. Do not edit without
  * a CODEOWNERS-tagged review.
  */
-import { jwtVerify } from "jose";
+import { jwtVerify, importSPKI, type KeyLike } from "jose";
 
 const ISSUER = "autoresearch-money";
-const ALG = "HS256";
+const ALG = "RS256";
 
 export type IdentityRole =
   | "agent"
@@ -42,18 +49,16 @@ const ALLOWED_ROLES: ReadonlySet<IdentityRole> = new Set([
   "budget-watchdog",
 ]);
 
-let cachedSecret: Uint8Array | null = null;
-function getSecret(): Uint8Array {
-  if (cachedSecret) return cachedSecret;
-  const raw = process.env["AUTH_JWT_SECRET"];
+let cachedKey: KeyLike | null = null;
+async function getPublicKey(): Promise<KeyLike> {
+  if (cachedKey) return cachedKey;
+  const raw = process.env["AUTH_JWT_PUBLIC_KEY"];
   if (!raw) {
-    throw new Error("AUTH_JWT_SECRET is not set in Convex env");
+    throw new Error("AUTH_JWT_PUBLIC_KEY is not set in Convex env");
   }
-  if (raw.length < 32) {
-    throw new Error("AUTH_JWT_SECRET must be ≥32 bytes for HS256 strength");
-  }
-  cachedSecret = new TextEncoder().encode(raw);
-  return cachedSecret;
+  const pem = atob(raw.replace(/\s+/g, ""));
+  cachedKey = await importSPKI(pem, ALG);
+  return cachedKey;
 }
 
 export class IdentityError extends Error {
@@ -70,7 +75,7 @@ export async function requireIdentity(
   if (!token) throw new IdentityError("missing identity token");
   let payload: Record<string, unknown>;
   try {
-    const verified = await jwtVerify(token, getSecret(), {
+    const verified = await jwtVerify(token, await getPublicKey(), {
       issuer: ISSUER,
       algorithms: [ALG],
     });
