@@ -1,4 +1,3 @@
-import { fn } from "./tensorlake.js";
 import type { Hypothesis } from "@autoresearch/schemas";
 import { BudgetError, createLogger } from "@autoresearch/shared";
 import { reserveBudget, finalizeBudget, releaseBudget } from "./budget.js";
@@ -21,7 +20,9 @@ export interface ChildResult {
 const MEASUREMENT_WINDOW_MS = 60 * 60 * 1000; // 60 min
 
 /**
- * Tensorlake `@function` — one hypothesis per invocation. Each child:
+ * One hypothesis per invocation. Splits into ship + measure in P7.6;
+ * for now this remains a single async function with an in-process sleep.
+ *
  *   1. Creates an experiment row (no money spent yet).
  *   2. Reserves the budget atomically (BEFORE any external spend).
  *   3. Generates the deliverable artifact, uploads to Convex storage.
@@ -34,15 +35,12 @@ const MEASUREMENT_WINDOW_MS = 60 * 60 * 1000; // 60 min
  * On exception: releases unspent reserved budget so the cap isn't
  * permanently held, and marks the experiment `crash` with the error.
  */
-export const runChild = fn(
-  { name: "run-hypothesis", timeout: "90m", memoryMb: 2048 },
-  async (h: Hypothesis): Promise<ChildResult> => {
-    const keys = await loadRunKeys(h.actingUserId);
-    return withRunContext({ actingUserId: h.actingUserId, keys }, () =>
-      runChildBody(h),
-    );
-  },
-);
+export async function runChild(h: Hypothesis): Promise<ChildResult> {
+  const keys = await loadRunKeys(h.actingUserId);
+  return withRunContext({ actingUserId: h.actingUserId, keys }, () =>
+    runChildBody(h),
+  );
+}
 
 async function runChildBody(h: Hypothesis): Promise<ChildResult> {
   const expId = await convexClient().mutation<string>("experiments:create", {

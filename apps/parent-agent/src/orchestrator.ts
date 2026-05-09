@@ -1,125 +1,39 @@
-import { application } from "./tensorlake.js";
-import { HypothesisSchema, type Lesson, type Tenant } from "@autoresearch/schemas";
-import { createLogger } from "@autoresearch/shared";
-import { propose } from "./propose.js";
-import { runChild } from "./child.js";
-import { selectAndClassify, type ChildOutcome } from "./select.js";
-import { distillLessonsForGeneration } from "./lessons.js";
-import { killSwitchTripped } from "./budget.js";
-import { convexClient } from "./tools/convex-client.js";
-import { env } from "./env.js";
-
-const log = createLogger("parent-agent.orchestrator");
-
-const DEFAULT_BATCH_SIZE = 6;
-const MAX_BATCH_SIZE = 8;
-const HALT_POLL_INTERVAL_MS = 30_000;
-
 /**
- * Tensorlake `@application` — long-lived, restarts from snapshot. Owns
- * the autoresearch loop end-to-end. Per-child concurrency capped at 8
- * (Tensorlake quota); each child gets its own sandbox and explicit
- * secret subset.
+ * Local-dev entrypoint. In production this is replaced by a Vercel cron
+ * trigger that calls the workflow directly (see workflows/run-generation.ts
+ * + the cron config in P7.7). For local smoke-tests:
+ *
+ *   ACTING_USER_ID=<users:_id> pnpm tsx src/orchestrator.ts
+ *
+ * Runs ONE generation and exits. No while-loop, no kill-switch poll
+ * loop — the schedule lives outside the process.
  */
-export const orchestrator = application(
-  { name: "autoresearch-money-parent", memoryMb: 1024 },
-  async () => {
-    log.info("orchestrator starting", { apex: env().APEX_DOMAIN });
+import { runGeneration } from "./workflows/run-generation.js";
+import { createLogger } from "@autoresearch/shared";
 
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const halt = await killSwitchTripped();
-      if (halt.halt) {
-        log.warn("kill switch engaged — pausing", { reason: halt.reason });
-        await sleep(HALT_POLL_INTERVAL_MS);
-        continue;
-      }
+const log = createLogger("parent-agent.entrypoint");
 
-      const generation = await convexClient().mutation<number>(
-        "system:nextGeneration",
-        {}
-      );
-      log.info("generation start", { generation });
-
-      const lessons = (await convexClient().query("lessons:topWeighted", {
-        limit: 50,
-      })) as Lesson[];
-      const liveTenants = (await convexClient().query("tenants:byStatus", {
-        status: "live",
-      })) as Tenant[];
-
-      const batchSize = chooseBatchSize();
-      const hypotheses = await propose({
-        generation,
-        batchSize,
-        lessons,
-        liveTenants,
-      });
-
-      // Schema-validate. NOTE: aggregate budget pre-check is deliberately
-      // ABSENT — children reserve atomically inside runChild() (§5.7). A
-      // reviewer flagged the pre-check pattern as race-prone (P0 #3).
-      for (const h of hypotheses) HypothesisSchema.parse(h);
-
-      log.info("fan-out children", {
-        generation,
-        count: hypotheses.length,
-      });
-
-      const outcomes = await Promise.allSettled(
-        hypotheses.map((h) => runChild(h))
-      );
-
-      const childOutcomes: PromiseSettledResult<ChildOutcome>[] =
-        outcomes.map((o) =>
-          o.status === "fulfilled"
-            ? {
-                status: "fulfilled",
-                value: {
-                  experimentId: o.value.experimentId,
-                  status: o.value.status,
-                  error: o.value.error,
-                },
-              }
-            : { status: "rejected", reason: o.reason }
-        );
-
-      for (const out of childOutcomes) {
-        await selectAndClassify(out);
-      }
-
-      await distillLessonsForGeneration(generation);
-      await convexClient().mutation("system:snapshotGeneration", { generation });
-
-      log.info("generation complete", { generation });
-    }
-  }
-);
-
-function chooseBatchSize(): number {
-  // Reserved knob — could vary based on time-of-day, recent crash rate,
-  // budget headroom. v1 uses a static default within Tensorlake's quota.
-  return Math.min(DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE);
+const actingUserId = process.env["ACTING_USER_ID"];
+if (!actingUserId) {
+  console.error(
+    "ACTING_USER_ID env var required. Pass the Convex users:_id of " +
+      "the user whose Stripe + BYOK keys this run should use.",
+  );
+  process.exit(1);
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// Tensorlake bootstrap: in the real SDK, importing this module registers
-// `orchestrator` with the runtime which invokes it. With the local stub
-// (./tensorlake.ts), nothing calls it for us — so we kick it off here when
-// this file is the entrypoint.
-export default orchestrator;
-
-const isEntrypoint =
-  import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1]?.endsWith("/orchestrator.ts") ||
-  process.argv[1]?.endsWith("/orchestrator.js");
-
-if (isEntrypoint) {
-  orchestrator().catch((err) => {
-    log.error("orchestrator crashed", { err: String(err) });
+runGeneration(actingUserId)
+  .then((res) => {
+    log.info("generation finished", {
+      generation: res.generation,
+      outcomes: res.outcomes.length,
+      halted: res.halted,
+    });
+    process.exit(0);
+  })
+  .catch((err) => {
+    log.error("generation crashed", {
+      err: err instanceof Error ? err.stack : String(err),
+    });
     process.exit(1);
   });
-}
