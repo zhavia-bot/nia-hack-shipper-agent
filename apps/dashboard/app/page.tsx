@@ -46,19 +46,31 @@ const phases = [
     icon: FlaskConical,
     title: "Hypothesize",
     body:
-      "Parent agent samples trending TikTok-Shop niches via Reacher and grounds them with Nia deep-research, scores them with a contextual bandit, and writes one experiment per child. Eight children run in parallel.",
+      "Parent agent samples trending TikTok-Shop niches via Reacher's live shop feed and grounds them with Nia deep-research priors. A Thompson-sampled bandit picks 70% exploit / 30% explore by default — operator can pull the slider either way.",
+  },
+  {
+    icon: Bot,
+    title: "Scout",
+    body:
+      "Each child fires up Vercel Sandbox + agent-browser to scrape the actual product page on Temu/Alibaba. FLUX 2 (Gemini 3 Pro Image fallback) re-skins the scraped photos into ad creatives the operator's storefront actually uses.",
   },
   {
     icon: Rocket,
     title: "Ship",
     body:
-      "Each child generates a digital product (copy, images, deliverable), spins up a tenant on the multi-tenant Next.js storefront via subdomain routing, and creates a Stripe Checkout Session.",
+      "Tenant goes live on a *.team.vercel.app subdomain with a Stripe Checkout Session minted on the operator's connected account. Funds land directly in their Stripe balance — no platform fee, no escrow, no rehydration.",
   },
   {
     icon: Gauge,
     title: "Measure",
     body:
-      "Stripe webhooks land in Convex. Revenue is booked only on confirmed paid sessions, attributed via client_reference_id. ROAS feeds back into the bandit. Lessons persist across runs.",
+      "Stripe webhooks land in Convex. Revenue is booked only on confirmed paid sessions, attributed via client_reference_id. ROAS feeds back into the bandit; lessons distill into Nia for the next generation's priors.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Settle",
+    body:
+      "Demo-safe by construction: every paid order auto-refunds via Stripe Connect within seconds and the customer gets an apology email via the operator's Resend key. The agent never has inventory to fulfill — the upstream conversion signal is the artifact.",
   },
 ];
 
@@ -141,15 +153,17 @@ export default function LandingPage() {
           Terminal goal: maximize $ in Stripe balance
         </Badge>
         <h1 className="max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
-          Point an autonomous agent at your Stripe account{" "}
-          <span className="text-accent">and let it ship until it makes money.</span>
+          An autonomous agent that hypothesis-tests TikTok-Shop products{" "}
+          <span className="text-accent">until it finds one that converts.</span>
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Sign up, connect your Stripe (Standard via Connect — funds land
-          directly in your balance, no platform fee), drop in your own API
-          keys, and the parent spawns eight parallel children. Each one runs
-          a single hypothesis: generate a digital product, deploy it as a
-          Stripe storefront on your account, drive traffic, measure ROAS.
+          Connect your Stripe (Standard via Connect — funds land in your
+          balance, no platform fee), drop in your AI Gateway, Reacher, Nia,
+          and Resend keys, and the parent agent spawns eight parallel
+          children every cycle. Each one scouts a real product on Temu,
+          re-skins the photos with FLUX 2, ships a storefront, and measures
+          conversion — all on your account, all in under an hour. Every
+          paid order auto-refunds; the conversion signal is the artifact.
         </p>
 
         <div className="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
@@ -185,14 +199,15 @@ export default function LandingPage() {
             <Workflow className="mr-1 h-3 w-3" /> Loop
           </Badge>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            One loop. Eight parallel bets. Real money on the line.
+            One loop. Eight parallel bets. Every paid order refunds.
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Each child is one experiment. Wins survive. Losses become lessons.
-            The bandit gets sharper every cycle.
+            Each child runs Hypothesize → Scout → Ship → Measure → Settle in
+            isolation. Wins survive. Losses become lessons. The bandit gets
+            sharper every generation.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {phases.map((p, i) => (
             <Card key={p.title} className="border-border/60 bg-card/50 backdrop-blur-sm">
               <CardHeader>
@@ -213,6 +228,69 @@ export default function LandingPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 py-20">
+        <div className="mb-10 max-w-2xl">
+          <Badge variant="secondary" className="mb-3 text-[10px] uppercase tracking-wider">
+            <Gauge className="mr-1 h-3 w-3" /> Operator controls
+          </Badge>
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            You stay in the loop without micromanaging it.
+          </h2>
+          <p className="mt-3 text-muted-foreground">
+            The console renders a live tail of what the agent is doing,
+            tenant-by-tenant kill and force-refund buttons for the panic
+            moments, and a single slider that decides how much risk the
+            next generation takes.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card className="border-border/60">
+            <CardHeader>
+              <Sparkles className="h-5 w-5 text-accent" />
+              <CardTitle className="mt-3 text-base">Live agent stream</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-sm leading-relaxed">
+                Convex realtime sub of the agent&rsquo;s narrative —
+                generation start, scouted product, storefront live, measured
+                ROAS, settlement. No polling, no refresh button.
+              </CardDescription>
+            </CardContent>
+          </Card>
+          <Card className="border-border/60">
+            <CardHeader>
+              <ShieldCheck className="h-5 w-5 text-accent" />
+              <CardTitle className="mt-3 text-base">
+                Kill + force-refund
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-sm leading-relaxed">
+                One click flips a tenant to <code>killed</code> (storefront
+                404s, agent moves on). A second sweeps every payment intent
+                on the connected account and refunds it via the
+                Stripe-Account header.
+              </CardDescription>
+            </CardContent>
+          </Card>
+          <Card className="border-border/60">
+            <CardHeader>
+              <Workflow className="h-5 w-5 text-accent" />
+              <CardTitle className="mt-3 text-base">
+                Explore / exploit slider
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-sm leading-relaxed">
+                One number in [0, 1]. Pull right to compound proven
+                buckets; pull left to find new winners. The agent re-reads
+                it at the start of every generation.
+              </CardDescription>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
@@ -258,10 +336,12 @@ export default function LandingPage() {
               Boring infrastructure. Sharp tools.
             </h2>
             <p className="mt-3 text-muted-foreground">
-              Every dependency earns its keep. Convex is canonical state. Stripe
-              Connect is the goal function. Vercel Workflows is the durable
-              orchestrator; Vercel AI Gateway is the single user-provided
-              key behind every LLM and image-gen call.
+              Every dependency earns its keep. Reacher surfaces live
+              TikTok-Shop niches; Nia gives the agent grounded research
+              priors and a corpus of its own past lessons. Vercel Sandbox
+              hosts the agent-browser scout. AI Gateway routes every model
+              call through one BYOK key. Convex is canonical state and the
+              realtime backbone. Stripe Connect is the goal function.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 self-center">
