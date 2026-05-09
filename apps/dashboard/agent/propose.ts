@@ -18,6 +18,7 @@ import { generateJson } from "./tools/llm.js";
 import { convexClient } from "./tools/convex-client.js";
 import { reacher } from "./tools/reacher.js";
 import { nia } from "./tools/nia.js";
+import { currentContext } from "./run-context.js";
 
 const log = createLogger("parent-agent.propose");
 
@@ -28,9 +29,12 @@ export interface ProposeArgs {
   liveTenants: Tenant[];
 }
 
-const EXPLOIT_FRACTION = 0.7;
-const EXPLORE_NEAR_FRACTION = 0.2;
-// Remainder is explore-far (0.1).
+// Defaults preserve the original 70/20/10 split when the operator
+// hasn't moved the explore/exploit slider. Live value is loaded per-run
+// from the acting user's row (P8.12). Near/far split of the explore
+// remainder stays 2:1 — the slider is a single-number knob.
+const DEFAULT_EXPLOIT_FRACTION = 0.7;
+const NEAR_OF_EXPLORE = 2 / 3;
 
 const CATEGORIES = PhysicalCategorySchema.options;
 const PRICE_TIERS = PriceTierSchema.options;
@@ -50,11 +54,16 @@ const REACHER_FALLBACK_NICHES = ["LED desk gadget"];
  * that returns a schema-valid Hypothesis.
  */
 export async function propose(args: ProposeArgs): Promise<Hypothesis[]> {
-  const exploitSlots = Math.round(args.batchSize * EXPLOIT_FRACTION);
-  const exploreNearSlots = Math.round(args.batchSize * EXPLORE_NEAR_FRACTION);
+  const exploitFraction = await resolveExploitFraction();
+  const exploreFraction = 1 - exploitFraction;
+
+  const exploitSlots = Math.round(args.batchSize * exploitFraction);
+  const exploreNearSlots = Math.round(
+    args.batchSize * exploreFraction * NEAR_OF_EXPLORE,
+  );
   const exploreFarSlots = Math.max(
     0,
-    args.batchSize - exploitSlots - exploreNearSlots
+    args.batchSize - exploitSlots - exploreNearSlots,
   );
 
   const [bucketStats, nichePool] = await Promise.all([
@@ -69,6 +78,7 @@ export async function propose(args: ProposeArgs): Promise<Hypothesis[]> {
 
   log.info("proposing batch", {
     generation: args.generation,
+    exploitFraction,
     exploitSlots,
     exploreNearSlots,
     exploreFarSlots,
@@ -240,6 +250,28 @@ function extractTextFromMcp(result: unknown): string {
     .map((b) => b.text!)
     .join("\n\n")
     .trim();
+}
+
+/**
+ * P8.12 — read the user's explore/exploit slider. Falls back to the
+ * 0.7 default whenever the lookup fails for any reason (no run
+ * context, query rejected, network blip). Clamps to [0, 1] defensively
+ * so a corrupt row can't blow the slot math.
+ */
+async function resolveExploitFraction(): Promise<number> {
+  const ctx = currentContext();
+  if (!ctx) return DEFAULT_EXPLOIT_FRACTION;
+  try {
+    const r = (await convexClient().query("users:runSettingsForUser", {
+      userId: ctx.actingUserId,
+    })) as { exploitFraction: number | null } | null;
+    const v = r?.exploitFraction;
+    if (v == null || !Number.isFinite(v)) return DEFAULT_EXPLOIT_FRACTION;
+    return Math.max(0, Math.min(1, v));
+  } catch (err) {
+    log.warn("runSettingsForUser failed; falling back to default", { err });
+    return DEFAULT_EXPLOIT_FRACTION;
+  }
 }
 
 async function fetchBucketStats(): Promise<BucketStats[]> {

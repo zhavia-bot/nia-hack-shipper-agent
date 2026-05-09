@@ -223,3 +223,58 @@ export const apiKeyStatus = query({
     };
   },
 });
+
+/**
+ * Self-serve: explore/exploit slider. Persisted as `exploitFraction`
+ * in [0,1]. The agent's propose() reads it via runSettingsForUser
+ * during each generation and derives the near/far explore split.
+ */
+export const updateExploreExploit = mutation({
+  args: { exploitFraction: v.number() },
+  handler: async (ctx, { exploitFraction }) => {
+    if (
+      !Number.isFinite(exploitFraction) ||
+      exploitFraction < 0 ||
+      exploitFraction > 1
+    ) {
+      throw new Error("exploitFraction must be a number in [0, 1]");
+    }
+    const user = await requireUser(ctx);
+    await ctx.db.patch(user._id, {
+      exploitFraction,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Self-serve read: current value (or null if never set). UI uses this
+ * to seed the slider; an unset value renders as the 0.7 default.
+ */
+export const runSettings = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return null;
+    return {
+      exploitFraction: user.exploitFraction ?? null,
+    };
+  },
+});
+
+/**
+ * Agent-only read: settings the run loop needs to honor. Mirrors
+ * keysForUser's identity check so the agent can fetch alongside keys
+ * without dragging another role into the picture.
+ */
+export const runSettingsForUser = query({
+  args: { token: v.string(), userId: v.id("users") },
+  handler: async (ctx, { token, userId }) => {
+    await requireIdentity(token, ["agent"]);
+    const u = await ctx.db.get(userId);
+    if (!u) throw new Error(`user not found: ${userId}`);
+    return {
+      exploitFraction: u.exploitFraction ?? null,
+    };
+  },
+});

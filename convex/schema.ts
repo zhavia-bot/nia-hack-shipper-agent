@@ -42,6 +42,12 @@ export default defineSchema({
     resendKey: v.optional(v.string()),
     reacherKey: v.optional(v.string()),
     niaKey: v.optional(v.string()),
+    // P8.12 — operator preference. Single knob in [0,1]: 1 = pure
+    // exploit (Thompson-sampled winners only), 0 = pure explore. The
+    // remainder is split 2:1 between near-explore (refine mutations) and
+    // far-explore (random buckets). Default 0.7 preserves the original
+    // 70/20/10 split if unset.
+    exploitFraction: v.optional(v.number()),
     // Stripe Connect — see P4.
     stripeConnectedAccountId: v.optional(v.string()),
     stripeCountry: v.optional(v.string()),

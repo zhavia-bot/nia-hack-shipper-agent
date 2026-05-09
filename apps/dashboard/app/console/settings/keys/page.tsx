@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ByokForm } from "@/components/byok-form";
+import { ExploreExploitSlider } from "@/components/explore-exploit-slider";
 
 export default function BYOKPage() {
   return (
@@ -34,6 +35,8 @@ export default function BYOKPage() {
       </header>
 
       <ByokForm />
+
+      <ExploreExploitSlider />
     </main>
   );
 }
