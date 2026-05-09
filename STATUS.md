@@ -15,7 +15,13 @@ We're pivoting from "single-operator agent" → "multi-tenant SaaS where any use
   - [x] P1.4 users table + requireUser + clerk-webhook httpAction (same commit). svix-verified user.created/updated/deleted handlers.
 
 **P1 complete — pending end-to-end smoke test by user.**
-- **P2** — userId scoping on tenants/experiments/ledgerEvents/budget/lessons/agentRuns + backfill
+- **P2 — userId scoping on tenants/experiments/ledger** (commit `0a5cc98`)
+  - schema: userId + by_user/by_user_status/by_user_generation/by_user_time indexes
+  - tenants/experiments service mutations take explicit `actingUserId`
+  - ledger recordCharge/recordRefund derive userId via `tenantSubdomain` lookup; recordAdSpend takes `actingUserId`
+  - new `mine*` queries (tenants, experiments, ledger) for Clerk-authenticated console reads
+  - storefront stripe-webhook updated: routes paid/refund through `tenantSubdomain` from session/charge metadata; missing → audit log + skip
+  - **deferred**: parent-agent caller updates (will land in P3 when dashboard drives runs); budget/lessons/agentRuns scoping (not user-scoped for hackathon)
 - **P3** — BYOK settings page + agent runtime reads keys from user row
 - **P4** — packages/connect + dashboard onboarding UI + per-tenant Stripe factory
 - **P5** — Connect webhook endpoint
