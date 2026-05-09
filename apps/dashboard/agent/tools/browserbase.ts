@@ -27,7 +27,9 @@ export const browserbase = {
   async createSession() {
     return bbFetch(`/sessions`, {
       method: "POST",
-      body: JSON.stringify({ projectId: env().BROWSERBASE_PROJECT_ID }),
+      body: JSON.stringify({
+        projectId: process.env["BROWSERBASE_PROJECT_ID"],
+      }),
     });
   },
 

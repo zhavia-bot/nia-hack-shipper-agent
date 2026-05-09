@@ -51,7 +51,7 @@ export async function runHypothesis(h: Hypothesis): Promise<ChildResult> {
     const msg = err instanceof Error ? err.message : String(err);
     log.error("hypothesis crashed", {
       experimentId: experimentId || h.id,
-      reservationId,
+      reservationId: reservationId ?? undefined,
       err: msg,
     });
     if (experimentId) {

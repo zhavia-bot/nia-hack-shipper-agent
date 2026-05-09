@@ -121,7 +121,7 @@ export async function measureAndFinalize(
   return withUserCtx(h.actingUserId, async () => {
     const metrics = await measure(experimentId);
     await finalizeBudget(reservationId);
-    log.info("measured + finalized", { experimentId, ...metrics });
+    log.info("measured + finalized", { ...metrics });
     return metrics;
   });
 }

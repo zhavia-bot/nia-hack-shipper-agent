@@ -40,7 +40,11 @@ export async function runGeneration(actingUserId: string): Promise<{
     log.warn("kill switch engaged — skipping generation", {
       reason: halt.reason,
     });
-    return { generation: -1, outcomes: [], halted: { reason: halt.reason } };
+    return {
+      generation: -1,
+      outcomes: [],
+      halted: { reason: halt.reason ?? "unknown" },
+    };
   }
 
   const keys = await loadRunKeys(actingUserId);

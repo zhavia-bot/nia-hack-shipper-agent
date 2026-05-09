@@ -28,7 +28,8 @@ export const cloudflare = {
   /** DNS token only. */
   async upsertCnameRecord(args: { hostname: string; target: string }) {
     const token = getCloudflareToken("dns");
-    const zone = env().CLOUDFLARE_ZONE_ID;
+    const zone = process.env["CLOUDFLARE_ZONE_ID"];
+    if (!zone) throw new Error("CLOUDFLARE_ZONE_ID env var not set");
     return cfFetch(token, `/zones/${zone}/dns_records`, {
       method: "POST",
       body: JSON.stringify({

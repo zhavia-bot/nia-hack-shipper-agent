@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
+import { start } from "workflow/api";
 import { api } from "@autoresearch/convex/api";
+import { runGeneration } from "@/agent/workflows/run-generation";
 
 /**
  * POST /api/workflows/trigger
  *
- * Fires one `runGeneration` workflow for the authenticated user. In
- * production this calls `start(runGeneration, [actingUserId])` from
- * `workflow/api`, which enqueues a durable workflow run on Vercel's
- * runtime. For local dev without the workflow runtime, this returns 501
- * — kick off the agent manually with:
- *
- *   ACTING_USER_ID=<users:_id> pnpm --filter @autoresearch/parent-agent dev
+ * Fires one `runGeneration` workflow for the authenticated user. `start`
+ * from `workflow/api` enqueues a durable run via Vercel Queues — the HTTP
+ * request returns immediately while the workflow body executes in the
+ * background, surviving deploys + crashes.
  */
 export async function POST() {
   const { userId, getToken } = await auth();
@@ -38,24 +37,6 @@ export async function POST() {
     );
   }
 
-  // In production this becomes:
-  //   const { start } = await import('workflow/api');
-  //   const { runGeneration } = await import('@autoresearch/parent-agent/workflows/run-generation');
-  //   const run = await start(runGeneration, [me._id]);
-  //   return NextResponse.json({ runId: run.id });
-  //
-  // The workflow runtime + plugin must be enabled in the Vercel project for
-  // start() to succeed. Until that's wired up (P7.7 follow-up), surface a
-  // clear 501 instead of pretending success.
-  return NextResponse.json(
-    {
-      error:
-        "Workflow runtime not wired up in this environment. Run the agent " +
-        "locally with ACTING_USER_ID=" +
-        me._id +
-        " pnpm --filter @autoresearch/parent-agent dev",
-      actingUserId: me._id,
-    },
-    { status: 501 },
-  );
+  const run = await start(runGeneration, [me._id]);
+  return NextResponse.json({ runId: run.runId, actingUserId: me._id });
 }

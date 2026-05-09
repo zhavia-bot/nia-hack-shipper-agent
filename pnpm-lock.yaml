@@ -30,12 +30,27 @@ importers:
 
   apps/dashboard:
     dependencies:
+      '@ai-sdk/gateway':
+        specifier: ^3.0.112
+        version: 3.0.112(zod@4.4.3)
+      '@autoresearch/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@autoresearch/bandit':
+        specifier: workspace:*
+        version: link:../../packages/bandit
       '@autoresearch/connect':
         specifier: workspace:*
         version: link:../../packages/connect
       '@autoresearch/convex':
         specifier: workspace:*
         version: link:../../convex
+      '@autoresearch/deliverables':
+        specifier: workspace:*
+        version: link:../../packages/deliverables
+      '@autoresearch/prompts':
+        specifier: workspace:*
+        version: link:../../packages/prompts
       '@autoresearch/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
@@ -45,9 +60,18 @@ importers:
       '@clerk/nextjs':
         specifier: ^7.3.3
         version: 7.3.3(next@16.2.6(@opentelemetry/api@1.9.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.29.0
+        version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
       '@radix-ui/react-slot':
         specifier: ^1.1.0
         version: 1.2.4(@types/react@19.2.14)(react@19.2.6)
+      '@stripe/agent-toolkit':
+        specifier: ^0.7.12
+        version: 0.7.12(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(openai@5.23.2(ws@8.18.0)(zod@4.4.3)))(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(agents@0.0.84(@cfworker/json-schema@4.1.1)(@cloudflare/workers-types@4.20260508.1)(react@19.2.6))(ai@6.0.177(zod@4.4.3))(openai@5.23.2(ws@8.18.0)(zod@4.4.3))
+      ai:
+        specifier: ^6.0.177
+        version: 6.0.177(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -57,6 +81,9 @@ importers:
       convex:
         specifier: ^1.17.0
         version: 1.38.0(@clerk/react@6.6.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
+      exa-js:
+        specifier: ^1.10.3
+        version: 1.10.3(ws@8.18.0)
       lucide-react:
         specifier: ^0.460.0
         version: 0.460.0(react@19.2.6)
@@ -75,6 +102,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.6(react@19.2.6)
+      resend:
+        specifier: ^4.8.0
+        version: 4.8.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       stripe:
         specifier: ^18.5.0
         version: 18.5.0(@types/node@24.12.3)
@@ -84,6 +114,12 @@ importers:
       tailwind-merge:
         specifier: ^2.6.0
         version: 2.6.1
+      workflow:
+        specifier: ^4.2.4
+        version: 4.2.4(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.1(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(next@16.2.6(@opentelemetry/api@1.9.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(typescript@6.0.3)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.0.0
@@ -103,70 +139,6 @@ importers:
       tailwindcss:
         specifier: ^4.0.0
         version: 4.2.4
-      typescript:
-        specifier: ^6.0.0
-        version: 6.0.3
-
-  apps/parent-agent:
-    dependencies:
-      '@ai-sdk/gateway':
-        specifier: ^3.0.112
-        version: 3.0.112(zod@4.4.3)
-      '@autoresearch/auth':
-        specifier: workspace:*
-        version: link:../../packages/auth
-      '@autoresearch/bandit':
-        specifier: workspace:*
-        version: link:../../packages/bandit
-      '@autoresearch/convex':
-        specifier: workspace:*
-        version: link:../../convex
-      '@autoresearch/deliverables':
-        specifier: workspace:*
-        version: link:../../packages/deliverables
-      '@autoresearch/prompts':
-        specifier: workspace:*
-        version: link:../../packages/prompts
-      '@autoresearch/schemas':
-        specifier: workspace:*
-        version: link:../../packages/schemas
-      '@autoresearch/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.0.0
-        version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
-      '@stripe/agent-toolkit':
-        specifier: ^0.7.0
-        version: 0.7.12(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(openai@5.23.2(ws@8.18.0)(zod@4.4.3)))(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(agents@0.0.84(@cfworker/json-schema@4.1.1)(@cloudflare/workers-types@4.20260508.1)(react@19.2.6))(ai@6.0.177(zod@4.4.3))(openai@5.23.2(ws@8.18.0)(zod@4.4.3))
-      ai:
-        specifier: ^6.0.177
-        version: 6.0.177(zod@4.4.3)
-      convex:
-        specifier: ^1.17.0
-        version: 1.38.0(@clerk/react@6.6.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
-      exa-js:
-        specifier: ^1.5.0
-        version: 1.10.3(ws@8.18.0)
-      resend:
-        specifier: ^4.0.0
-        version: 4.8.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      stripe:
-        specifier: ^18.0.0
-        version: 18.5.0(@types/node@24.12.3)
-      workflow:
-        specifier: ^4.2.4
-        version: 4.2.4(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.1(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(next@16.2.6(@opentelemetry/api@1.9.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(typescript@6.0.3)
-      zod:
-        specifier: ^4.0.0
-        version: 4.4.3
-    devDependencies:
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.12.3
-      tsx:
-        specifier: ^4.19.0
-        version: 4.21.0
       typescript:
         specifier: ^6.0.0
         version: 6.0.3
@@ -5654,7 +5626,7 @@ snapshots:
       semver: 7.7.4
       string-width: 4.2.3
       supports-color: 8.1.1
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.16
       widest-line: 3.1.0
       wordwrap: 1.0.0
       wrap-ansi: 7.0.0

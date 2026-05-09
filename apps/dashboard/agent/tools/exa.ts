@@ -1,10 +1,15 @@
 import Exa from "exa-js";
-import { env } from "../env.js";
+import { getKey } from "../run-context.js";
 
-let cached: Exa | null = null;
+const clients = new Map<string, Exa>();
 function client(): Exa {
-  if (!cached) cached = new Exa(env().EXA_API_KEY);
-  return cached;
+  const key = getKey("exa");
+  let c = clients.get(key);
+  if (!c) {
+    c = new Exa(key);
+    clients.set(key, c);
+  }
+  return c;
 }
 
 /**
