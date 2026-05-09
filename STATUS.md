@@ -9,13 +9,13 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 4. Step 3 — `packages/shared`
 5. Step 4 — `packages/bandit`
 6. Step 5 — `packages/deliverables`
-7. Step 6 — `packages/prompts` (propose, distill, copy, report/pack/json deliverable specs; versioned templates)
+7. Step 6 — `packages/prompts`
+8. Step 7 — `packages/auth` (jose HS256, mintToken, verifyToken, requireIdentity)
 
 ## In progress
-- Step 7: packages/auth
+- Step 8: convex/
 
 ## Next
-8. convex/
 9. apps/parent-agent (+ program.md)
 10. apps/storefronts
 11. apps/dashboard
@@ -24,3 +24,4 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 - Stack pins: Node 24, TS 6.0, Next.js 16, pnpm 11, ESM only
 - Hard invariants in AGENTS.md must hold
 - pnpm install NOT yet run; run after step 11
+- Token passed in mutation args (`token: v.string()`) since Convex doesn't natively verify HS256
