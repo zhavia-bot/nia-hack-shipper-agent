@@ -5,13 +5,13 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 ## Done
 1. AGENTS.md + CLAUDE.md symlink + STATUS.md
 2. Step 1 — Monorepo scaffold
-3. Step 2 — `packages/schemas` (Hypothesis, Tenant, Experiment, LedgerEvent, Lesson, BudgetState, BudgetReservation, Identity)
+3. Step 2 — `packages/schemas`
+4. Step 3 — `packages/shared` (logger, env loader, ulid, typed errors)
 
 ## In progress
-- Step 3: packages/shared
+- Step 4: packages/bandit
 
 ## Next
-4. packages/bandit
 5. packages/deliverables
 6. packages/prompts
 7. packages/auth
@@ -24,4 +24,3 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 - Stack pins: Node 24, TS 6.0, Next.js 16, pnpm 11, ESM only
 - Hard invariants in AGENTS.md must hold
 - pnpm install NOT yet run; run after step 11
-- Schemas exported from `@autoresearch/schemas`; consumed by all packages/apps
