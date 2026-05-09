@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { DollarTicker } from "@/components/dollar-ticker";
 import { BudgetState } from "@/components/budget-state";
 import { RecentLedger } from "@/components/recent-ledger";
@@ -15,20 +16,43 @@ export default function DashboardPage() {
         gap: "1.5rem",
       }}
     >
-      <header>
-        <div
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-end",
+          gap: "1rem",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: "0.85rem",
+              color: "#777",
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+            }}
+          >
+            autoresearch
+          </div>
+          <h1 style={{ fontSize: "1.6rem", margin: "0.2rem 0 0" }}>
+            Live ops
+          </h1>
+        </div>
+        <Link
+          href="/console/settings/keys"
           style={{
             fontSize: "0.85rem",
-            color: "#777",
-            textTransform: "uppercase",
-            letterSpacing: "0.07em",
+            color: "#444",
+            textDecoration: "none",
+            border: "1px solid #d6d3cc",
+            padding: "0.4rem 0.8rem",
+            borderRadius: 8,
+            background: "#fafaf7",
           }}
         >
-          autoresearch
-        </div>
-        <h1 style={{ fontSize: "1.6rem", margin: "0.2rem 0 0" }}>
-          Live ops
-        </h1>
+          API keys →
+        </Link>
       </header>
 
       <DollarTicker />
