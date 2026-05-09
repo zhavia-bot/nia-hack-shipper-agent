@@ -7,13 +7,13 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 2. Step 1 — Monorepo scaffold
 3. Step 2 — `packages/schemas`
 4. Step 3 — `packages/shared`
-5. Step 4 — `packages/bandit` (lnGamma, betaCDF, betaQuantile, betaSample, thompson, classifyROAS)
+5. Step 4 — `packages/bandit`
+6. Step 5 — `packages/deliverables` (pdf-lib, jszip, validated specs)
 
 ## In progress
-- Step 5: packages/deliverables
+- Step 6: packages/prompts
 
 ## Next
-6. packages/prompts
 7. packages/auth
 8. convex/
 9. apps/parent-agent (+ program.md)
@@ -24,4 +24,3 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 - Stack pins: Node 24, TS 6.0, Next.js 16, pnpm 11, ESM only
 - Hard invariants in AGENTS.md must hold
 - pnpm install NOT yet run; run after step 11
-- Bandit lib: needs scipy.stats.beta validation tests later (readiness §3 open Q)
