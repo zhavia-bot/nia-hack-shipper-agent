@@ -39,8 +39,27 @@ Tensorlake doesn't exist on npm under `@tensorlake/sdk`; the real package is `te
 - **P7.3 — text LLM calls through Vercel AI Gateway** (commit `e8fb3ab`). `tools/llm.ts` rewritten on `ai` + `@ai-sdk/gateway`. `generateObject` replaces hand-rolled JSON-parse/strip-fence/retry. Models: `anthropic/claude-opus-4.6` + `claude-sonnet-4.6`. Per-user `aiGatewayKey` from `getKey('aiGateway')`. `@anthropic-ai/sdk` removed from parent-agent deps.
 - **P7.4 — image gen fully through AI Gateway** (commit `c0e1a85`). Primary `bfl/flux-2-flex`, fallback `google/gemini-3-pro-image`. AI SDK `experimental_generateImage` via `@ai-sdk/gateway`. Returns base64 data URLs (caller persists to Convex File Storage). `openai` and `@fal-ai/client` deps removed; `openaiKey` + `falKey` dropped from schema/users/BYOK form/run-context. RunKeys is now 7 fields (was 9).
 - **P7.5 — orchestrator becomes a Vercel Workflow** (commit `27183c6`). New `apps/parent-agent/src/workflows/run-generation.ts` with `'use workflow'` directive — one generation per call, durable. `runChild` is now a plain async function (no Tensorlake `fn()` wrapper). `orchestrator.ts` is now a thin local-dev entrypoint that fires one generation given `ACTING_USER_ID`. Cron schedule deferred to P7.7. Children are still in-process for now (P7.6 splits into ship + measure workflows).
-- **P7.6 — runHypothesis becomes a Vercel workflow over durable `sleep('60m')`** (commit `<TBD>`). New `workflows/run-hypothesis.ts` (`'use workflow'`) replaces `child.ts`. Body extracted into `workflows/steps/hypothesis-steps.ts` (`'use step'`): setup → ship → kickTraffic → sleep → measureAndFinalize → rollbackOnCrash. Each step re-hydrates BYOK keys via `withUserCtx(actingUserId)` because AsyncLocalStorage doesn't survive step replay. `child.ts` deleted. Simpler than the agent's two-workflow split — Vercel's `sleep()` is itself durable, no need to fragment into ship + measure runs.
-- **P7.7** — dashboard "run a generation" trigger + docs sweep (AGENTS.md, stack.md, landing)
+- **P7.6 — runHypothesis becomes a Vercel workflow over durable `sleep('60m')`** (commit `7aff376`). New `workflows/run-hypothesis.ts` (`'use workflow'`) replaces `child.ts`. Body extracted into `workflows/steps/hypothesis-steps.ts` (`'use step'`): setup → ship → kickTraffic → sleep → measureAndFinalize → rollbackOnCrash. Each step re-hydrates BYOK keys via `withUserCtx(actingUserId)` because AsyncLocalStorage doesn't survive step replay. `child.ts` deleted. Simpler than the agent's two-workflow split — Vercel's `sleep()` is itself durable, no need to fragment into ship + measure runs.
+- **P7.7 — dashboard trigger + docs sweep** (commit `<TBD>`). `/console` gains a "Run a generation" button → `POST /api/workflows/trigger` (Clerk-auth, looks up `users:current`, returns 501 + the local-dev command until Vercel workflow runtime is enabled at deploy). AGENTS.md Shape paragraph + pinned-stack table + invariant #7 + new BYOK section reflect Vercel Workflows + AI Gateway. Landing page stack chips: Tensorlake/gpt-image-2/FLUX 2 Pro out → Vercel Workflows / AI Gateway / Clerk / FLUX 2 / Gemini 3 Pro Image in.
+
+## P7 complete (2026-05-09)
+
+Vercel-all-in pivot done. Tensorlake stub removed; durable orchestration is Vercel Workflows; LLM + image gen is Vercel AI Gateway with one user-provided key. Platform's BYOK list is now: aiGatewayKey, exaKey, browserbaseKey, resendKey, reacherKey, niaKey, cloudflareKey. Operator only pays for: Stripe (Connect of-record), Convex, Vercel (hosting + workflows), Clerk, JWT keypair, apex domain.
+
+### Smoke-test post-P7
+
+1. `pnpm --filter @autoresearch/dashboard --filter convex dev` boots cleanly
+2. Sign up via Clerk, BYOK form shows AI Gateway + Exa fields
+3. `/console` "Run a generation" button → returns 501 with the local-dev hint
+4. Locally: `ACTING_USER_ID=<uid> pnpm --filter @autoresearch/parent-agent dev` — orchestrator entrypoint fires `runGeneration` once
+5. (Deferred) wire `start(runGeneration)` once Vercel workflow runtime + plugin are configured on the deployment
+
+### Known follow-ups (out of P7)
+
+- Pre-existing TS errors in propose.ts, lessons.ts, revenue.ts, exa.ts, stripe.ts (unrelated to pivot — surface area for separate cleanup)
+- Cron schedule for `runGeneration` (vercel.json or workflow scheduled hook) — needs deployment first
+- `start(runGeneration, [actingUserId])` wiring in `/api/workflows/trigger` once the Vercel workflow plugin is enabled in the Next.js host
+- Encrypt BYOK keys at rest (hackathon scope: plaintext)
 
 ## Pivot complete (2026-05-09)
 

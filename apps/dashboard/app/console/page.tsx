@@ -4,6 +4,7 @@ import { BudgetState } from "@/components/budget-state";
 import { RecentLedger } from "@/components/recent-ledger";
 import { ExperimentsFeed } from "@/components/experiments-feed";
 import { BucketHeatmap } from "@/components/bucket-heatmap";
+import { RunGenerationButton } from "@/components/run-generation-button";
 
 export default function DashboardPage() {
   return (
@@ -39,7 +40,8 @@ export default function DashboardPage() {
             Live ops
           </h1>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <RunGenerationButton />
           <Link
             href="/console/settings/stripe"
             style={{

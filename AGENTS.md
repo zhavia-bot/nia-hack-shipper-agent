@@ -4,7 +4,7 @@ Multi-tenant SaaS for autonomous money-making agents. Each user signs up, connec
 
 ## Shape (one paragraph)
 
-One TS monorepo. A Tensorlake parent (1) spawns parallel children (≤8), each running one hypothesis: generate a digital product, deploy it as a tenant on a multi-tenant Next.js app on Vercel (subdomain-routed), create a Stripe Checkout-Session-driven storefront on the **user's connected Stripe account** (no platform fee), drive traffic, measure ROAS. Convex is canonical state (users, tenants, experiments, ledger, lessons, budget) and the realtime backbone for the human dashboard. Every user-scoped row carries `userId`; service mutations take an explicit `actingUserId` while human mutations resolve identity via `requireUser(ctx)` (Clerk OIDC). Stripe Connect webhooks land at Vercel API routes and forward into Convex. External sense organs: Reacher MCP, Nia MCP, Exa. External hands: Browserbase, Resend, Cloudflare API. Image gen: gpt-image-2 primary, FLUX 2 Pro fallback. BYOK keys flow into the agent runtime via `AsyncLocalStorage` in `apps/parent-agent/src/run-context.ts`.
+One TS monorepo. A Vercel **Workflow** (`runGeneration`, `'use workflow'`) is the parent — one invocation per generation, fired by a cron trigger. It fans out N≤8 child workflows (`runHypothesis`, `'use workflow'`); each one ships a tenant on a multi-tenant Next.js app on Vercel (subdomain-routed), creates a Stripe Checkout-Session-driven storefront on the **user's connected Stripe account** (no platform fee), drives traffic, then `sleep('60m')` (durable), then measures. The body of each workflow is composed of `'use step'` units (`hypothesis-steps.ts`) which are idempotent + retryable. Convex is canonical state (users, tenants, experiments, ledger, lessons, budget) and the realtime backbone for the human dashboard. Every user-scoped row carries `userId`; service mutations take an explicit `actingUserId` while human mutations resolve identity via `requireUser(ctx)` (Clerk OIDC). Stripe Connect webhooks land at Next.js API routes and forward into Convex. **All LLM + image-gen calls route through Vercel AI Gateway** with a single user-provided `aiGatewayKey`. External sense organs: Reacher MCP, Nia MCP, Exa. External hands: Browserbase, Resend, Cloudflare API. BYOK keys are re-hydrated at the top of every workflow step via `loadRunKeys(actingUserId)` from `apps/parent-agent/src/run-context.ts` (AsyncLocalStorage doesn't survive durable step replay).
 
 ## Source of truth
 
@@ -15,7 +15,9 @@ One TS monorepo. A Tensorlake parent (1) spawns parallel children (≤8), each r
 ## Pinned stack (verified 2026-05-09)
 
 - Node 24 LTS, TypeScript 6.0, Next.js 16, pnpm 11, ESM only
-- `convex@^1`, `stripe@^18`, `openai@^5` (gpt-image-2), `@fal-ai/client@^1` (FLUX 2 Pro), `zod@^4`, `@tensorlake/sdk@latest`
+- `convex@^1`, `stripe@^18`, `zod@^4`
+- Agent runtime: `workflow@^4` (Vercel Workflows, `'use workflow'` / `'use step'` / durable `sleep`)
+- LLM + image gen: `ai@^6` + `@ai-sdk/gateway@^3` (single user-provided key routes Anthropic, OpenAI, FLUX, Gemini Image)
 
 ## Hard invariants (do not violate)
 
@@ -39,24 +41,14 @@ One TS monorepo. A Tensorlake parent (1) spawns parallel children (≤8), each r
 
 6. **Stripe action allowlist** — wrap toolkit in a build-time `Proxy` permitting only: `products.create`, `prices.create`, `checkout.sessions.{create,retrieve}`, `events.{list,retrieve}`. Defense-in-depth on the restricted key.
 
-7. **Image generation** — gpt-image-2 primary, FLUX 2 Pro via fal.ai fallback on policy/rate errors. Persist to **Convex File Storage**; tenants reference our URL, never expiring OpenAI URLs.
+7. **Image generation** — `bfl/flux-2-flex` primary, `google/gemini-3-pro-image` fallback on policy/rate errors, both via Vercel AI Gateway (`@ai-sdk/gateway` + `experimental_generateImage`). Persist to **Convex File Storage**; tenants reference our URL, never expiring provider URLs.
 
 8. **Identity provider** — Clerk for human sessions (the dashboard). Custom RS256 JWTs in `packages/auth` for service identities (agent, webhooks, admin). The two coexist: Convex `auth.config.ts` registers Clerk as an OIDC provider for `ctx.auth`, while service callers pass an explicit `token` arg validated by `convex/_lib/identity.ts`.
 
-## Build plan (11 commits)
+## BYOK split
 
-Each step ends with `/git-commit` and a STATUS.md update.
+**Platform** (operator pays once, all users share): Stripe (platform of-record for Connect), Convex, Vercel (hosting + workflows), Clerk, JWT keypair, apex domain.
 
-1. Monorepo scaffold (root config files)
-2. `packages/schemas`
-3. `packages/shared`
-4. `packages/bandit`
-5. `packages/deliverables`
-6. `packages/prompts`
-7. `packages/auth`
-8. `convex/`
-9. `apps/parent-agent` (includes `program.md` skill)
-10. `apps/storefronts`
-11. `apps/dashboard`
+**BYOK** (user provides via `/console/settings/keys`): `aiGatewayKey` (covers all LLM + image gen via Vercel AI Gateway), `exaKey`, `browserbaseKey`, `resendKey`, `reacherKey`, `niaKey`, `cloudflareKey`. No more separate Anthropic / OpenAI / FAL keys — Gateway covers all three.
 
-No tests, no deploys in this pass — those come later.
+The agent runtime never reads any of these BYOK values from `process.env`. They're loaded per workflow step via `loadRunKeys(actingUserId)` from `apps/parent-agent/src/run-context.ts`.

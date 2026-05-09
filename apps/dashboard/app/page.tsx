@@ -27,19 +27,20 @@ import { Separator } from "@/components/ui/separator";
 import { DollarTicker } from "@/components/dollar-ticker";
 
 const stack = [
-  "Tensorlake",
+  "Vercel Workflows",
+  "Vercel AI Gateway",
   "Convex",
-  "Stripe",
+  "Stripe Connect",
   "Next.js 16",
-  "Vercel",
+  "Clerk",
   "Cloudflare",
   "Reacher",
   "Nia",
   "Exa",
   "Browserbase",
   "Resend",
-  "gpt-image-2",
-  "FLUX 2 Pro",
+  "FLUX 2",
+  "Gemini 3 Pro Image",
 ];
 
 const phases = [
@@ -260,8 +261,9 @@ export default function LandingPage() {
             </h2>
             <p className="mt-3 text-muted-foreground">
               Every dependency earns its keep. Convex is canonical state. Stripe
-              is the goal function. Tensorlake is the orchestrator. Nothing is
-              there for resume points.
+              Connect is the goal function. Vercel Workflows is the durable
+              orchestrator; Vercel AI Gateway is the single user-provided
+              key behind every LLM and image-gen call.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 self-center">
