@@ -19,7 +19,9 @@ const ParentAgentEnvSchema = z.object({
   VERCEL_TOKEN: z.string().min(1),
   VERCEL_STOREFRONTS_PROJECT_ID: z.string().min(1),
 
-  // Apex / display
+  // Storefront apex — set to your `<team>.vercel.app` (or `<user>.vercel.app`
+  // for hobby) so wildcard tenant URLs `exp-XXXXXX.<APEX_DOMAIN>` resolve via
+  // Vercel's automatic wildcard SSL. P7.9 removed the Cloudflare DNS path.
   APEX_DOMAIN: z.string().min(1),
 
   // Optional

@@ -72,7 +72,7 @@ Visitors < 30 forces `pending`. Spend ≤ 0 forces `pending` (no signal possible
 
 ## Logging
 
-Every external action (Stripe call, Vercel call, Cloudflare call, Browserbase session, LLM call) is auto-logged to `auditLog` via the `record` mutation. Treat the audit log as immutable — humans review it weekly.
+Every external action (Stripe call, Vercel call, Sandbox session, LLM call) is auto-logged to `auditLog` via the `record` mutation. Treat the audit log as immutable — humans review it weekly.
 
 Every agent decision must include enough context that a future generation reading the lesson can reconstruct *why*:
 - The `rationale` on Hypothesis at creation.

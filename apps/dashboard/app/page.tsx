@@ -33,7 +33,6 @@ const stack = [
   "Stripe Connect",
   "Next.js 16",
   "Clerk",
-  "Cloudflare",
   "Reacher",
   "Nia",
   "Exa",

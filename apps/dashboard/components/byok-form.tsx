@@ -12,8 +12,7 @@ type KeyField = {
     | "browserbaseKey"
     | "resendKey"
     | "reacherKey"
-    | "niaKey"
-    | "cloudflareKey";
+    | "niaKey";
   label: string;
   hint: string;
 };
@@ -48,11 +47,6 @@ const FIELDS = {
     arg: "niaKey",
     label: "Nia",
     hint: "Codebase grounding for the agent",
-  },
-  cloudflare: {
-    arg: "cloudflareKey",
-    label: "Cloudflare",
-    hint: "Custom-domain provisioning for tenant subdomains",
   },
 } as const satisfies Record<string, Omit<KeyField, "key">>;
 

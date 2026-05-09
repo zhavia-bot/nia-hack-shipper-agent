@@ -176,7 +176,6 @@ export const updateApiKeys = mutation({
     resendKey: v.optional(v.string()),
     reacherKey: v.optional(v.string()),
     niaKey: v.optional(v.string()),
-    cloudflareKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -207,7 +206,6 @@ export const keysForUser = query({
       resend: u.resendKey ?? null,
       reacher: u.reacherKey ?? null,
       nia: u.niaKey ?? null,
-      cloudflare: u.cloudflareKey ?? null,
     };
   },
 });
@@ -228,7 +226,6 @@ export const apiKeyStatus = query({
       resend: !!user.resendKey,
       reacher: !!user.reacherKey,
       nia: !!user.niaKey,
-      cloudflare: !!user.cloudflareKey,
     };
   },
 });

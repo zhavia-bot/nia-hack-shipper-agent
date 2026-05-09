@@ -36,7 +36,6 @@ export default defineSchema({
     resendKey: v.optional(v.string()),
     reacherKey: v.optional(v.string()),
     niaKey: v.optional(v.string()),
-    cloudflareKey: v.optional(v.string()),
     // Stripe Connect — see P4.
     stripeConnectedAccountId: v.optional(v.string()),
     stripeCountry: v.optional(v.string()),

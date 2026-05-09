@@ -23,7 +23,6 @@ export interface RunKeys {
   resend: string | null;
   reacher: string | null;
   nia: string | null;
-  cloudflare: string | null;
 }
 
 export interface RunContext {
@@ -74,10 +73,3 @@ export function getKey(name: KeyName): string {
   );
 }
 
-/**
- * Cloudflare-specific: users provide one Cloudflare key that's used for
- * both DNS and Registrar API calls (their account, their tokens).
- */
-export function getCloudflareToken(_scope: "dns" | "registrar"): string {
-  return getKey("cloudflare");
-}
