@@ -74,7 +74,7 @@ const invariants = [
     icon: ShieldCheck,
     title: "Caller-identity ACLs",
     body:
-      "Five identities (agent, stripe-webhook, refund-worker, dashboard, admin) enforced at every Convex mutation. Deploy keys do not bypass row-level checks.",
+      "Six service identities (agent, stripe-webhook, refund-worker, dashboard, admin, budget-watchdog) plus Clerk-authenticated humans. Every Convex mutation gates on one or the other; deploy keys do not bypass row-level checks.",
   },
   {
     icon: CircleDollarSign,
@@ -142,14 +142,15 @@ export default function LandingPage() {
           Terminal goal: maximize $ in Stripe balance
         </Badge>
         <h1 className="max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
-          An autonomous agent that ships products{" "}
-          <span className="text-accent">until it makes money.</span>
+          Point an autonomous agent at your Stripe account{" "}
+          <span className="text-accent">and let it ship until it makes money.</span>
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          A Tensorlake parent spawns eight children in parallel. Each one runs a
-          single hypothesis: generate a digital product, deploy it as a Stripe
-          storefront, drive traffic, measure ROAS. Convex is the realtime
-          backbone. Every dollar is booked from a verified webhook.
+          Sign up, connect your Stripe (Standard via Connect — funds land
+          directly in your balance, no platform fee), drop in your own API
+          keys, and the parent spawns eight parallel children. Each one runs
+          a single hypothesis: generate a digital product, deploy it as a
+          Stripe storefront on your account, drive traffic, measure ROAS.
         </p>
 
         <div className="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
@@ -285,9 +286,9 @@ export default function LandingPage() {
               Want to see the live numbers?
             </CardTitle>
             <CardDescription className="max-w-xl text-base">
-              The operator console shows the ledger as it&rsquo;s booked,
+              Your console shows your ledger as it&rsquo;s booked, your
               experiments mid-flight, the bandit heatmap, and the budget
-              reservation queue. Auth-walled — ask for the password.
+              reservation queue. Sign in with Clerk to scope it to your runs.
             </CardDescription>
           </CardHeader>
           <CardContent>

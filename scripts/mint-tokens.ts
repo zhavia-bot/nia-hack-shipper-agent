@@ -65,7 +65,6 @@ for (const r of roles) {
 }
 
 lines.push(`DELIVER_TOKEN_SECRET=${randomBytes(32).toString("hex")}`);
-lines.push(`DASHBOARD_BASIC_AUTH=admin:${randomBytes(12).toString("base64url")}`);
 lines.push("# === end minted ===");
 
 console.log(lines.join("\n"));

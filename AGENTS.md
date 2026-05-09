@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Autonomous money-making agent. Terminal goal: **maximize $ in Stripe balance**.
+Multi-tenant SaaS for autonomous money-making agents. Each user signs up, connects their own Stripe account (Standard via Connect), brings their own API keys (BYOK), and the agent runs on their behalf. Terminal goal per user: **maximize $ in their Stripe balance**.
 
 ## Shape (one paragraph)
 
-One TS monorepo. A Tensorlake parent (1) spawns parallel children (≤8), each running one hypothesis: generate a digital product, deploy it as a tenant on a multi-tenant Next.js app on Vercel (subdomain-routed), create a Stripe Checkout-Session-driven storefront, drive traffic, measure ROAS. Convex is canonical state (tenants, experiments, ledger, lessons, budget) and the realtime backbone for the human dashboard. Stripe webhooks land at Vercel API routes and forward into Convex. External sense organs: Reacher MCP, Nia MCP, Exa. External hands: Browserbase, Resend, Cloudflare API. Image gen: gpt-image-2 primary, FLUX 2 Pro fallback.
+One TS monorepo. A Tensorlake parent (1) spawns parallel children (≤8), each running one hypothesis: generate a digital product, deploy it as a tenant on a multi-tenant Next.js app on Vercel (subdomain-routed), create a Stripe Checkout-Session-driven storefront on the **user's connected Stripe account** (no platform fee), drive traffic, measure ROAS. Convex is canonical state (users, tenants, experiments, ledger, lessons, budget) and the realtime backbone for the human dashboard. Every user-scoped row carries `userId`; service mutations take an explicit `actingUserId` while human mutations resolve identity via `requireUser(ctx)` (Clerk OIDC). Stripe Connect webhooks land at Vercel API routes and forward into Convex. External sense organs: Reacher MCP, Nia MCP, Exa. External hands: Browserbase, Resend, Cloudflare API. Image gen: gpt-image-2 primary, FLUX 2 Pro fallback. BYOK keys flow into the agent runtime via `AsyncLocalStorage` in `apps/parent-agent/src/run-context.ts`.
 
 ## Source of truth
 
@@ -35,13 +35,13 @@ One TS monorepo. A Tensorlake parent (1) spawns parallel children (≤8), each r
 
 4. **Budget atomicity** — children call `budget:reserve` (Convex transactional mutation) BEFORE any external spend. No pre-loop aggregate budget checks. Reservation is finalized or released at experiment conclusion.
 
-5. **Caller-identity ACLs** — every Convex mutation begins `await requireIdentity(ctx, [allowedRoles])`. Five identities: `agent`, `stripe-webhook`, `refund-worker`, `dashboard`, `admin`. Convex deploy keys deploy code; they do **not** enforce row-level ACLs.
+5. **Caller-identity ACLs** — service-side mutations begin `await requireIdentity(token, [allowedRoles])`. Service identities: `agent`, `stripe-webhook`, `refund-worker`, `dashboard`, `admin`, `budget-watchdog`. Human-side mutations (anything called from the dashboard with a Clerk session) begin `await requireUser(ctx)` and resolve `userId` from `ctx.auth.getUserIdentity()`. Convex deploy keys deploy code; they do **not** enforce row-level ACLs.
 
 6. **Stripe action allowlist** — wrap toolkit in a build-time `Proxy` permitting only: `products.create`, `prices.create`, `checkout.sessions.{create,retrieve}`, `events.{list,retrieve}`. Defense-in-depth on the restricted key.
 
 7. **Image generation** — gpt-image-2 primary, FLUX 2 Pro via fal.ai fallback on policy/rate errors. Persist to **Convex File Storage**; tenants reference our URL, never expiring OpenAI URLs.
 
-8. **Identity provider** — custom JWT in `packages/auth`. Not Clerk.
+8. **Identity provider** — Clerk for human sessions (the dashboard). Custom RS256 JWTs in `packages/auth` for service identities (agent, webhooks, admin). The two coexist: Convex `auth.config.ts` registers Clerk as an OIDC provider for `ctx.auth`, while service callers pass an explicit `token` arg validated by `convex/_lib/identity.ts`.
 
 ## Build plan (11 commits)
 

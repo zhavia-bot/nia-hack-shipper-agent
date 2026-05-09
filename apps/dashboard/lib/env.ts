@@ -9,8 +9,8 @@
  * browser, the only privilege it grants is reading the dashboard's
  * own queries; no writes, no admin access.
  *
- * Behind a basic-auth gate (`middleware.ts`) so this token never
- * leaks to the public internet.
+ * Behind a Clerk session gate (`proxy.ts` protects /console/*), so
+ * this token only loads after the user is signed in.
  */
 export function publicEnv(): {
   CONVEX_URL: string;
