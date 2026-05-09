@@ -8,9 +8,8 @@
  * convex/_lib/identity.ts. Issuer + per-role TTLs mirror packages/auth.
  */
 import { SignJWT, importPKCS8 } from "jose";
-import { randomBytes } from "node:crypto";
 
-const ISSUER = "autoresearch-money";
+const ISSUER = "autodrop";
 const ALG = "RS256";
 
 const TTL_SECONDS_BY_ROLE = {
@@ -64,7 +63,6 @@ for (const r of roles) {
   lines.push(`${r.env}=${await mint(r.role, r.subject)}`);
 }
 
-lines.push(`DELIVER_TOKEN_SECRET=${randomBytes(32).toString("hex")}`);
 lines.push("# === end minted ===");
 
 console.log(lines.join("\n"));

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { api } from "@autoresearch/convex/api";
+import { api } from "@autodrop/convex/api";
 import { stripeForTenant } from "@/lib/stripe";
 import { convex } from "@/lib/convex";
 import { resolveTenantByHost } from "@/lib/tenant-lookup";
@@ -21,11 +21,6 @@ const Body = z.object({ subdomain: z.string().min(1).max(64) });
  *
  * Why per-click sessions: see stack.md §4.4.1. A shared Payment Link
  * cannot be attributed back to the experiment that generated the click.
- *
- * The success URL embeds a signed HMAC token (mintDeliverToken) so the
- * customer can fetch the deliverable on the same redirect — but the
- * server still verifies `payment_status === "paid"` before serving
- * bytes. The token isn't a capability, just a routing handle.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);

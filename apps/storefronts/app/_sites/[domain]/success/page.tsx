@@ -1,11 +1,8 @@
-import Link from "next/link";
-import { CheckCircle2, Clock, Download } from "lucide-react";
-import { api } from "@autoresearch/convex/api";
-import { Button } from "@/components/ui/button";
+import { CheckCircle, Clock } from "@/components/icons";
+import { api } from "@autodrop/convex/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { stripeForTenant } from "@/lib/stripe";
 import { convex } from "@/lib/convex";
-import { mintDeliverToken } from "@/lib/deliver-token";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -92,52 +89,31 @@ async function SessionResolved({
           <h1 className="text-xl font-semibold">Payment is processing.</h1>
           <p className="text-sm text-muted-foreground">
             Status: <strong>{session.payment_status ?? "unknown"}</strong>.
-            Refresh in a minute or check your email — we'll send the download
-            link as soon as it clears.
+            Once Stripe clears the charge we'll issue a full refund and email
+            you confirmation — nothing else for you to do.
           </p>
         </CardContent>
       </Card>
     );
   }
-
-  const experimentId =
-    session.client_reference_id ?? session.metadata?.["experimentId"];
-  if (!experimentId) {
-    return (
-      <Card>
-        <CardContent className="space-y-2 p-6">
-          <h1 className="text-xl font-semibold">Receipt OK.</h1>
-          <p className="text-sm text-muted-foreground">
-            But we lost the attribution. Email support with this session id:{" "}
-            <code>{sessionId}</code>
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const token = mintDeliverToken({ sessionId, experimentId });
 
   return (
     <Card className="border-2">
       <CardContent className="space-y-4 p-8 text-center">
-        <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
+        <CheckCircle className="mx-auto h-12 w-12 text-emerald-500" />
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Thanks — your download is ready.
+            Order received — and already refunded.
           </h1>
           <p className="text-sm text-muted-foreground">
-            This link is valid for 7 days. Save the file somewhere safe.
+            We've issued a full refund on your card. Stripe will send you a
+            refund confirmation, and you'll get a short email from us
+            explaining what happened.
           </p>
         </div>
-        <Button asChild size="lg" className="w-full">
-          <Link href={`/api/deliver/${encodeURIComponent(token)}`}>
-            <Download className="mr-2 h-4 w-4" />
-            Download
-          </Link>
-        </Button>
         <p className="text-xs text-muted-foreground">
-          Refunds within 7 days, no questions asked.
+          Refunds typically clear in 5–10 business days, depending on your
+          bank.
         </p>
       </CardContent>
     </Card>

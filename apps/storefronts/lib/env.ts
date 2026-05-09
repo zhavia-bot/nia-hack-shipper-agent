@@ -12,10 +12,7 @@ import { z } from "zod";
  *   - `STRIPE_WEBHOOK_SECRET`: webhook signing secret. Verified on
  *     every webhook request before any state mutates.
  *   - `CONVEX_STOREFRONT_TOKEN`: HS256 JWT minted by the deploy
- *     pipeline with role=`stripe-webhook` (covers webhook ingest
- *     AND deliver-route reads).
- *   - `DELIVER_TOKEN_SECRET`: HMAC secret for signed deliverable
- *     URLs (per stack.md §10.3). Min 32 bytes.
+ *     pipeline with role=`stripe-webhook` (covers webhook ingest).
  */
 const Schema = z.object({
   CONVEX_URL: z.string().url(),
@@ -23,8 +20,6 @@ const Schema = z.object({
 
   STRIPE_SECRET_KEY: z.string().startsWith("rk_"),
   STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_"),
-
-  DELIVER_TOKEN_SECRET: z.string().min(32),
 
   APEX_DOMAIN: z.string().min(3),
   PUBLIC_BASE_URL: z.string().url().optional(),
