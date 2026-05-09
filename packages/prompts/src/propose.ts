@@ -7,6 +7,13 @@ export interface ProposeInput {
   lessons: Lesson[];
   liveTenants: { subdomain: string; hypothesisId: string; productTitle: string }[];
   modeHint: "exploit" | "explore_near" | "explore_far";
+  /**
+   * Optional Nia deep-research summary, generated once per generation and
+   * shared across all hypothesis slots. Empty string when Nia is unavailable
+   * or returns nothing parseable; callers should still render the section
+   * so the LLM sees a consistent template structure.
+   */
+  niaPriors: string;
 }
 
 const SYSTEM = `You are an autonomous commerce agent. Your terminal goal is to maximize the dollar balance in a Stripe account.
@@ -45,6 +52,10 @@ export const proposeHypothesis: PromptTemplate<ProposeInput> = {
             .join("\n")
         : "(no live tenants)";
 
+    const priorsBlock = input.niaPriors.trim().length > 0
+      ? input.niaPriors.trim()
+      : "(no Nia signal this generation — propose conservatively, lean on lessons)";
+
     return `Generation: ${input.generation}
 Mode: ${input.modeHint}
 
@@ -53,6 +64,9 @@ Bucket (you MUST stay within these dimensions):
   category:  ${input.bucket.category}
   priceTier: ${input.bucket.priceTier}
   channel:   ${input.bucket.channel}
+
+Nia priors (deep-research signal across this generation's niche pool — use as grounding, not gospel):
+${priorsBlock}
 
 Recent lessons (heavier weight = more recent, more confidence):
 ${lessonsBlock}

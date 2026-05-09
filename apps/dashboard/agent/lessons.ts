@@ -8,6 +8,7 @@ import { distillLessons, render } from "@autoresearch/prompts";
 import { createLogger } from "@autoresearch/shared";
 import { generateJson, MODEL_SONNET } from "./tools/llm.js";
 import { convexClient } from "./tools/convex-client.js";
+import { nia } from "./tools/nia.js";
 
 const log = createLogger("parent-agent.lessons");
 
@@ -83,6 +84,14 @@ export async function distillLessonsForGeneration(generation: number): Promise<{
     })),
   });
 
+  // Mirror lessons into Nia so future generations can search them via the
+  // Oracle alongside Nia's own corpus. Fire-and-forget — Nia indexing is
+  // not on the critical path, and any failure is logged but never blocks
+  // the parent loop.
+  void indexLessonsToNia(lessons, generation).catch((err) => {
+    log.warn("nia lesson indexing failed (non-fatal)", { err });
+  });
+
   const decayResult = (await convexClient().mutation(
     "lessons:decayAndPrune",
     {}
@@ -96,4 +105,46 @@ export async function distillLessonsForGeneration(generation: number): Promise<{
   });
 
   return { written: lessons.length, pruned: decayResult.pruned };
+}
+
+/**
+ * Push this generation's lessons into Nia as an indexable note. Tool
+ * names on Nia's MCP surface evolve, so we discover at call time and
+ * pick the first index/save/upsert tool. The serialized text is
+ * bucket-scoped lessons (one per line) plus a `gen-N` tag so retrieval
+ * can filter by generation later.
+ */
+async function indexLessonsToNia(lessons: Lesson[], generation: number): Promise<void> {
+  const tools = await nia.listTools();
+  const list = (tools as { tools?: { name: string }[] }).tools ?? [];
+  const candidate = list.find((t) =>
+    /index|save|upsert|store|memory|note/i.test(t.name),
+  );
+  if (!candidate) {
+    log.warn("nia: no index/save tool found; skipping lesson upload", {
+      toolCount: list.length,
+    });
+    return;
+  }
+
+  const text = lessons
+    .map((l) => {
+      const scope =
+        l.scope.kind === "bucket"
+          ? `[${l.scope.niche}/${l.scope.category}/${l.scope.priceTier}/${l.scope.channel}]`
+          : "[global]";
+      return `${scope} (gen ${generation}) ${l.pattern}\n  evidence: ${l.evidence.join(", ")}`;
+    })
+    .join("\n\n");
+
+  await nia.callTool(candidate.name, {
+    text,
+    tag: `gen-${generation}`,
+    source: "autoresearch-lessons",
+  });
+  log.info("nia: lessons indexed", {
+    tool: candidate.name,
+    count: lessons.length,
+    generation,
+  });
 }

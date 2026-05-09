@@ -17,6 +17,7 @@ import { createLogger, ulid } from "@autoresearch/shared";
 import { generateJson } from "./tools/llm.js";
 import { convexClient } from "./tools/convex-client.js";
 import { reacher } from "./tools/reacher.js";
+import { nia } from "./tools/nia.js";
 
 const log = createLogger("parent-agent.propose");
 
@@ -64,6 +65,8 @@ export async function propose(args: ProposeArgs): Promise<Hypothesis[]> {
   const exploreNearBuckets = await sampleNearMissBuckets(exploreNearSlots, nichePool);
   const exploreFarBuckets = sampleFarBuckets(exploreFarSlots, nichePool);
 
+  const niaPriors = await fetchNiaPriors(nichePool);
+
   log.info("proposing batch", {
     generation: args.generation,
     exploitSlots,
@@ -71,6 +74,7 @@ export async function propose(args: ProposeArgs): Promise<Hypothesis[]> {
     exploreFarSlots,
     bucketsAvailable: bucketStats.length,
     nichePoolSize: nichePool.length,
+    niaPriorsLen: niaPriors.length,
   });
 
   const seeds: { bucket: Bucket; mode: "exploit" | "explore_near" | "explore_far" }[] =
@@ -82,7 +86,7 @@ export async function propose(args: ProposeArgs): Promise<Hypothesis[]> {
 
   const hypotheses = await Promise.all(
     seeds.map((s) =>
-      llmGenerate(s.bucket, s.mode, args).catch((err) => {
+      llmGenerate(s.bucket, s.mode, args, niaPriors).catch((err) => {
         log.error("hypothesis generation failed; skipping slot", {
           err,
           bucket: s.bucket,
@@ -199,6 +203,45 @@ function extractNichesFromMcp(result: unknown): string[] {
   return [...out];
 }
 
+/**
+ * One Nia deep-research call per generation, shared across all hypothesis
+ * slots. Cheaper and more cohesive than per-slot calls — the LLM sees a
+ * unified picture of "what's selling now" and picks angles within it.
+ *
+ * Returns the concatenated text of Nia's content blocks, capped to ~6KB
+ * so we don't blow past the proposeHypothesis prompt budget. Empty string
+ * on failure; the prompt template renders a clear "(no Nia signal)"
+ * placeholder so the LLM doesn't hallucinate that priors exist.
+ */
+async function fetchNiaPriors(nichePool: string[]): Promise<string> {
+  const niches = nichePool.slice(0, 12).join(", ");
+  const query = `What is currently selling well on TikTok Shop in these niches: ${niches}? For each, surface 1-2 concrete angles (form factor, price band, hook) that are working right now and any that have flopped. Cite numbers if you have them. Keep the whole answer under 1500 words.`;
+  try {
+    const result = await nia.deepResearch(query);
+    const text = extractTextFromMcp(result);
+    if (!text) {
+      log.warn("nia deep-research returned empty content");
+      return "";
+    }
+    const capped = text.length > 6000 ? text.slice(0, 6000) + "…" : text;
+    log.info("nia priors fetched", { chars: capped.length });
+    return capped;
+  } catch (err) {
+    log.error("nia deep-research failed; proceeding without priors", { err });
+    return "";
+  }
+}
+
+function extractTextFromMcp(result: unknown): string {
+  const content =
+    (result as { content?: { type?: string; text?: string }[] }).content ?? [];
+  return content
+    .filter((b) => b.type === "text" && typeof b.text === "string")
+    .map((b) => b.text!)
+    .join("\n\n")
+    .trim();
+}
+
 async function fetchBucketStats(): Promise<BucketStats[]> {
   const rows = (await convexClient().query(
     "experiments:bucketStats",
@@ -259,7 +302,8 @@ function pick<T>(arr: readonly T[]): T {
 async function llmGenerate(
   bucket: Bucket,
   mode: "exploit" | "explore_near" | "explore_far",
-  args: ProposeArgs
+  args: ProposeArgs,
+  niaPriors: string,
 ): Promise<Hypothesis> {
   const prompt = render(proposeHypothesis, {
     generation: args.generation,
@@ -271,6 +315,7 @@ async function llmGenerate(
       productTitle: t.productSource.originalTitle,
     })),
     modeHint: mode,
+    niaPriors,
   });
 
   const result = await generateJson({
