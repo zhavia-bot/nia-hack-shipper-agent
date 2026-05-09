@@ -1,11 +1,14 @@
 import { z } from "zod";
 import { loadEnv } from "@autoresearch/shared";
 
+// Platform-level secrets stay required at process startup. BYOK keys
+// (OpenAI, Browserbase, Resend, Reacher, Nia, FAL, Cloudflare) flow per-run
+// via AsyncLocalStorage from the user row — see ./run-context.ts. Env values
+// for those are dev-only fallbacks; we keep them optional here.
 const ParentAgentEnvSchema = z.object({
-  // LLMs
+  // Platform LLMs / sense organs (kept platform-level per STATUS P3.2)
   ANTHROPIC_API_KEY: z.string().min(1),
-  OPENAI_API_KEY: z.string().min(1),
-  FAL_API_KEY: z.string().min(1),
+  EXA_API_KEY: z.string().min(1),
 
   // Stripe — agent's restricted key only. Webhook secret and refund key
   // do NOT reach the agent sandbox by design.
@@ -15,27 +18,24 @@ const ParentAgentEnvSchema = z.object({
   CONVEX_URL: z.string().url(),
   CONVEX_AGENT_TOKEN: z.string().min(1),
 
-  // Auth — used to verify tokens we mint for sub-calls if any. The agent
-  // sandbox does NOT mint tokens for itself; the orchestrator does at boot.
-  AUTH_JWT_SECRET: z.string().min(32),
-
-  // External hands
+  // Vercel — platform-level for tenant deploys
   VERCEL_TOKEN: z.string().min(1),
   VERCEL_STOREFRONTS_PROJECT_ID: z.string().min(1),
-  BROWSERBASE_API_KEY: z.string().min(1),
-  BROWSERBASE_PROJECT_ID: z.string().optional(),
-  RESEND_API_KEY: z.string().min(1),
-  CLOUDFLARE_DNS_TOKEN: z.string().min(1),
-  CLOUDFLARE_REGISTRAR_TOKEN: z.string().min(1),
-  CLOUDFLARE_ZONE_ID: z.string().min(1),
-
-  // Sense organs
-  EXA_API_KEY: z.string().min(1),
-  REACHER_API_KEY: z.string().min(1),
-  NIA_API_KEY: z.string().min(1),
 
   // Apex / display
   APEX_DOMAIN: z.string().min(1),
+
+  // BYOK fallbacks (optional — real values come from user row via run-context)
+  OPENAI_API_KEY: z.string().optional(),
+  FAL_API_KEY: z.string().optional(),
+  BROWSERBASE_API_KEY: z.string().optional(),
+  BROWSERBASE_PROJECT_ID: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  REACHER_API_KEY: z.string().optional(),
+  NIA_API_KEY: z.string().optional(),
+  CLOUDFLARE_DNS_TOKEN: z.string().optional(),
+  CLOUDFLARE_REGISTRAR_TOKEN: z.string().optional(),
+  CLOUDFLARE_ZONE_ID: z.string().optional(),
 
   // Optional
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),

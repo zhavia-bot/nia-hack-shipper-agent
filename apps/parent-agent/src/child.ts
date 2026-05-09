@@ -1,4 +1,4 @@
-import { application as fn } from "@tensorlake/sdk";
+import { fn } from "./tensorlake.js";
 import type { Hypothesis } from "@autoresearch/schemas";
 import { BudgetError, createLogger } from "@autoresearch/shared";
 import { reserveBudget, finalizeBudget, releaseBudget } from "./budget.js";

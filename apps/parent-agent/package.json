@@ -8,11 +8,13 @@
     "build": "tsc -b",
     "dev": "tsx watch src/orchestrator.ts",
     "start": "node dist/orchestrator.js",
-    "deploy": "tensorlake deploy",
+    "deploy": "vercel deploy",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^3.0.112",
+    "@anthropic-ai/sdk": "^0.40.0",
     "@autoresearch/auth": "workspace:*",
     "@autoresearch/bandit": "workspace:*",
     "@autoresearch/convex": "workspace:*",
@@ -20,23 +22,21 @@
     "@autoresearch/prompts": "workspace:*",
     "@autoresearch/schemas": "workspace:*",
     "@autoresearch/shared": "workspace:*",
-    "@anthropic-ai/sdk": "^0.40.0",
     "@fal-ai/client": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@stripe/agent-toolkit": "^0.7.0",
+    "ai": "^6.0.177",
     "convex": "^1.17.0",
     "exa-js": "^1.5.0",
     "openai": "^5.0.0",
     "resend": "^4.0.0",
     "stripe": "^18.0.0",
+    "workflow": "^4.2.4",
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "typescript": "^6.0.0",
+    "@types/node": "^24.0.0",
     "tsx": "^4.19.0",
-    "@types/node": "^24.0.0"
-  },
-  "optionalDependencies": {
-    "@tensorlake/sdk": "^0.5.0"
+    "typescript": "^6.0.0"
   }
 }

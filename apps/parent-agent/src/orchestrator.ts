@@ -1,4 +1,4 @@
-import { application } from "@tensorlake/sdk";
+import { application } from "./tensorlake.js";
 import { HypothesisSchema, type Lesson, type Tenant } from "@autoresearch/schemas";
 import { createLogger } from "@autoresearch/shared";
 import { propose } from "./propose.js";
@@ -106,5 +106,20 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Tensorlake bootstrap: import this module to start the application.
+// Tensorlake bootstrap: in the real SDK, importing this module registers
+// `orchestrator` with the runtime which invokes it. With the local stub
+// (./tensorlake.ts), nothing calls it for us — so we kick it off here when
+// this file is the entrypoint.
 export default orchestrator;
+
+const isEntrypoint =
+  import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1]?.endsWith("/orchestrator.ts") ||
+  process.argv[1]?.endsWith("/orchestrator.js");
+
+if (isEntrypoint) {
+  orchestrator().catch((err) => {
+    log.error("orchestrator crashed", { err: String(err) });
+    process.exit(1);
+  });
+}

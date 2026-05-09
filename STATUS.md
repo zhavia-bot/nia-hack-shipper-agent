@@ -30,6 +30,18 @@ We're pivoting from "single-operator agent" → "multi-tenant SaaS where any use
 - **P5 — Connect webhook for account.updated** (commit `e7ca76e`). `/api/stripe-webhook` on dashboard. Verifies STRIPE_CONNECT_WEBHOOK_SECRET, maps `account.updated` → user row via `users:byStripeAccount`. Other Connect events (charge/refund/dispute) keep flowing through the storefront webhook.
 - **P6 — cleanup** (commit `2f7fb53`). AGENTS.md invariants #5/#8 + Shape paragraph reframed for multi-tenant SaaS + Clerk/JWT coexistence. `DASHBOARD_BASIC_AUTH` dropped from `mint-tokens.ts`. Landing copy reframed for BYOK/Connect signup.
 
+## P7 — Vercel Workflows + AI Gateway pivot (2026-05-09, in progress)
+
+Tensorlake doesn't exist on npm under `@tensorlake/sdk`; the real package is `tensorlake` (microVM sandboxes). For a hackathon we go all-in on Vercel: Workflows for durable orchestration, AI Gateway for LLM routing, Sandbox deferred. Philosophy update: **user provides every key the agent burns** (LLM, search, browser, email, image, DNS). Platform only pays for things that make the platform itself exist (Stripe of-record, Convex, Vercel hosting, Clerk, JWT keypair, apex domain).
+
+- **P7.1 — strip Tensorlake stub, install vercel deps** (commit `<TBD>`). Removed `apps/parent-agent/src/tensorlake.ts`. Added `workflow`, `ai`, `@ai-sdk/gateway` to parent-agent. `deploy` script: `tensorlake deploy` → `vercel deploy`. `orchestrator.ts` and `child.ts` are intentionally broken at this checkpoint — rewritten in P7.5/P7.6. Dashboard + storefronts + convex still boot fine.
+- **P7.2** — env reshape: drop platform LLM keys, add `aiGatewayKey` + `exaKey` to user row + BYOK form
+- **P7.3** — text LLM calls through AI Gateway via `ai` package
+- **P7.4** — image gen through AI Gateway where supported (FLUX confirmed; gpt-image-2 TBD via /v1/models)
+- **P7.5** — `while(true)` orchestrator → cron-triggered Vercel Workflow
+- **P7.6** — child split into `ship-experiment` + `measure-experiment` workflows over `step.sleep`
+- **P7.7** — dashboard "run a generation" trigger + docs sweep (AGENTS.md, stack.md, landing)
+
 ## Pivot complete (2026-05-09)
 
 All P1–P6 phases shipped. Multi-tenant SaaS topology in place: Clerk-authenticated users, BYOK keys threaded through `AsyncLocalStorage`, Stripe Standard onboarding via packages/connect, per-tenant Checkout via `stripeForTenant()`, account-status reconciliation via Connect webhook.
