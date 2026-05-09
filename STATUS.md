@@ -13,12 +13,13 @@ Resume point if context compacts. Read this + `AGENTS.md` to pick up.
 8. Step 7 — `packages/auth`
 9. Step 8 — `convex/` (schema, tenants, experiments, ledger [IMMUTABLE], lessons, budget [IMMUTABLE], auditLog, system, http; vendored identity check)
 10. Step 9 — `apps/parent-agent` (orchestrator, child, propose/select/lessons, all tools, program.md)
+11. Step 10 — `apps/storefronts` (multi-tenant Next 16, middleware rewrite, /api/checkout, /api/stripe-webhook, /api/deliver/[token], success page, HMAC deliver-token, convex/storage.ts)
 
 ## In progress
-- Step 10: apps/storefronts (Next.js 16 multi-tenant)
+- Step 11: apps/dashboard (live $ ticker via Convex realtime)
 
 ## Next
-11. apps/dashboard
+- (last step)
 
 ## Notes
 - Stack pins: Node 24, TS 6.0, Next.js 16, pnpm 11, ESM only
