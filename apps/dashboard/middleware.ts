@@ -1,22 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * HTTP Basic auth gate. Per stack.md §4.3 the dashboard is
- * "auth-walled (Clerk or basic-auth)" — basic-auth is the v1 choice
- * because the dashboard is for ~3 humans. Credentials live in
- * `DASHBOARD_BASIC_AUTH=user:password` env.
+ * HTTP Basic auth gate for the operator console at /console/*.
  *
- * If unset, the middleware refuses *all* traffic — fail-closed. This
- * prevents accidental public exposure of operational dollar figures.
+ * The marketing landing at `/` is public so hackathon judges (and
+ * eventually anyone curious) can see the pitch + live $ ticker
+ * without a password. Operational pages — ledger detail, experiment
+ * controls, raw spend — live behind /console/* and require basic auth.
+ *
+ * Credentials live in `DASHBOARD_BASIC_AUTH=user:password` env. If
+ * unset, the gate fails closed — prevents accidental exposure of
+ * operational dollar figures.
  */
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/console/:path*"],
 };
 
 export default function middleware(req: NextRequest) {
   const expected = process.env["DASHBOARD_BASIC_AUTH"];
   if (!expected) {
-    return new NextResponse("Dashboard auth not configured.", { status: 503 });
+    return new NextResponse("Console auth not configured.", { status: 503 });
   }
 
   const auth = req.headers.get("authorization");
@@ -27,6 +30,6 @@ export default function middleware(req: NextRequest) {
 
   return new NextResponse("Authentication required.", {
     status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="dashboard"' },
+    headers: { "WWW-Authenticate": 'Basic realm="autoresearch console"' },
   });
 }

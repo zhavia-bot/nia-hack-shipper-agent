@@ -1,24 +1,17 @@
 import type { ReactNode } from "react";
 import { ConvexClientProvider } from "@/lib/convex-provider";
+import "./globals.css";
 
 export const metadata = {
-  title: "Autoresearch Dashboard",
-  description: "Live ops view for the autoresearch money agent.",
+  title: "Autoresearch — autonomous money agent",
+  description:
+    "An agent whose terminal goal is maximizing $ in Stripe balance. Spawns parallel hypotheses, ships products, measures ROAS.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          fontFamily:
-            "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-          color: "#111",
-          background: "#f5f3ee",
-          minHeight: "100vh",
-        }}
-      >
+    <html lang="en" className="scroll-smooth">
+      <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
         <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
     </html>

@@ -2,7 +2,7 @@
 
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { useMemo, type ReactNode } from "react";
-import { publicEnv } from "./env.js";
+import { publicEnv } from "./env";
 
 /**
  * Wraps the dashboard tree with a Convex realtime client. Every
