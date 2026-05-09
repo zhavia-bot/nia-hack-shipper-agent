@@ -295,6 +295,19 @@ importers:
         specifier: ^6.0.0
         version: 6.0.3
 
+  packages/connect:
+    dependencies:
+      stripe:
+        specifier: ^18.0.0
+        version: 18.5.0(@types/node@24.12.3)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.12.3
+      typescript:
+        specifier: ^6.0.0
+        version: 6.0.3
+
   packages/deliverables:
     dependencies:
       '@autoresearch/schemas':

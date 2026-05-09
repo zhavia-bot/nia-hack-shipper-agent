@@ -91,6 +91,67 @@ export const upsertFromClerk = internalMutation({
   },
 });
 
+/**
+ * Self-serve: write Stripe Connect fields after creating an account or
+ * receiving an `account.updated` webhook. Called from server actions
+ * (Connect onboarding flow) and the Connect webhook endpoint.
+ *
+ * Webhook callers pass `webhookForUserId` because they don't have a
+ * Clerk session — only a verified Stripe signature plus the connected
+ * account id, which they map back to the user via `by_stripe_account`.
+ */
+export const setStripeConnectFields = mutation({
+  args: {
+    accountId: v.string(),
+    country: v.optional(v.string()),
+    chargesEnabled: v.optional(v.boolean()),
+    payoutsEnabled: v.optional(v.boolean()),
+    requirementsCurrentlyDue: v.optional(v.array(v.string())),
+    webhookForUserId: v.optional(v.id("users")),
+    webhookToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let userId;
+    if (args.webhookForUserId && args.webhookToken) {
+      await requireIdentity(args.webhookToken, ["stripe-webhook"]);
+      userId = args.webhookForUserId;
+    } else {
+      const user = await requireUser(ctx);
+      userId = user._id;
+    }
+    const patch: Record<string, unknown> = {
+      stripeConnectedAccountId: args.accountId,
+      updatedAt: Date.now(),
+    };
+    if (args.country !== undefined) patch["stripeCountry"] = args.country;
+    if (args.chargesEnabled !== undefined)
+      patch["stripeChargesEnabled"] = args.chargesEnabled;
+    if (args.payoutsEnabled !== undefined)
+      patch["stripePayoutsEnabled"] = args.payoutsEnabled;
+    if (args.requirementsCurrentlyDue !== undefined)
+      patch["stripeRequirementsCurrentlyDue"] = args.requirementsCurrentlyDue;
+    await ctx.db.patch(userId, patch);
+  },
+});
+
+/**
+ * Webhook lookup: find the user that owns a connected Stripe account.
+ * Used by the Connect webhook endpoint to map `account.updated` to a
+ * user row.
+ */
+export const byStripeAccount = query({
+  args: { token: v.string(), accountId: v.string() },
+  handler: async (ctx, { token, accountId }) => {
+    await requireIdentity(token, ["stripe-webhook", "admin"]);
+    return ctx.db
+      .query("users")
+      .withIndex("by_stripe_account", (q) =>
+        q.eq("stripeConnectedAccountId", accountId),
+      )
+      .first();
+  },
+});
+
 export const deleteFromClerk = internalMutation({
   args: { clerkUserId: v.string() },
   handler: async (ctx, { clerkUserId }) => {

@@ -46,7 +46,8 @@ export default defineSchema({
   })
     .index("by_token_identifier", ["tokenIdentifier"])
     .index("by_clerk_user_id", ["clerkUserId"])
-    .index("by_email", ["email"]),
+    .index("by_email", ["email"])
+    .index("by_stripe_account", ["stripeConnectedAccountId"]),
 
   tenants: defineTable({
     userId: v.id("users"),
