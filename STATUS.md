@@ -10,9 +10,11 @@ We're pivoting from "single-operator agent" → "multi-tenant SaaS where any use
 
 - **P1 — Auth foundation**
   - [x] P1.1 packages/auth HS256 → RS256 (commit `b5269f2`). Convex env: `AUTH_JWT_PUBLIC_KEY` set; `AUTH_JWT_SECRET` removed. Service tokens re-minted in `.env.local`. Smoke-tested: `dashboard:netDollars` accepts new RS256 token.
-  - [x] P1.2 Clerk on apps/dashboard. `proxy.ts` (Next 16 rename) protects `/console/*` via `auth.protect()`. `<ClerkProvider>` + `<ConvexProviderWithClerk>` wrap the tree. Sign-in/up pages at `/sign-in` and `/sign-up`. Landing nav uses `<Show when=…>` (Clerk Core 3 replaces SignedIn/SignedOut). **Blocked on user providing Clerk keys** — see Notes.
-  - [ ] P1.3 convex/auth.config.ts (Clerk + service JWT providers)
-  - [ ] P1.4 users table + requireUser helper + Clerk webhook
+  - [x] P1.2 Clerk on apps/dashboard (commit `2a8b1d1`). `proxy.ts` (Next 16 rename) protects `/console/*`. `<Show when=…>` for nav state. Sign-in/up pages.
+  - [x] P1.3 convex/auth.config.ts (commit `a2b5a03`). Clerk OIDC provider with domain = CLERK_JWT_ISSUER_DOMAIN. Service JWTs keep their inline path.
+  - [x] P1.4 users table + requireUser + clerk-webhook httpAction (same commit). svix-verified user.created/updated/deleted handlers.
+
+**P1 complete — pending end-to-end smoke test by user.**
 - **P2** — userId scoping on tenants/experiments/ledgerEvents/budget/lessons/agentRuns + backfill
 - **P3** — BYOK settings page + agent runtime reads keys from user row
 - **P4** — packages/connect + dashboard onboarding UI + per-tenant Stripe factory
