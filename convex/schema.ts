@@ -32,7 +32,6 @@ export default defineSchema({
     // is no separate OpenAI / fal key — the Gateway covers both.
     aiGatewayKey: v.optional(v.string()),
     exaKey: v.optional(v.string()),
-    browserbaseKey: v.optional(v.string()),
     resendKey: v.optional(v.string()),
     reacherKey: v.optional(v.string()),
     niaKey: v.optional(v.string()),

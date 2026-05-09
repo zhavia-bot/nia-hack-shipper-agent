@@ -36,7 +36,7 @@ const stack = [
   "Reacher",
   "Nia",
   "Exa",
-  "Browserbase",
+  "Vercel Sandbox",
   "Resend",
   "FLUX 2",
   "Gemini 3 Pro Image",

@@ -172,7 +172,6 @@ export const updateApiKeys = mutation({
   args: {
     aiGatewayKey: v.optional(v.string()),
     exaKey: v.optional(v.string()),
-    browserbaseKey: v.optional(v.string()),
     resendKey: v.optional(v.string()),
     reacherKey: v.optional(v.string()),
     niaKey: v.optional(v.string()),
@@ -202,7 +201,6 @@ export const keysForUser = query({
     return {
       aiGateway: u.aiGatewayKey ?? null,
       exa: u.exaKey ?? null,
-      browserbase: u.browserbaseKey ?? null,
       resend: u.resendKey ?? null,
       reacher: u.reacherKey ?? null,
       nia: u.niaKey ?? null,
@@ -222,7 +220,6 @@ export const apiKeyStatus = query({
     return {
       aiGateway: !!user.aiGatewayKey,
       exa: !!user.exaKey,
-      browserbase: !!user.browserbaseKey,
       resend: !!user.resendKey,
       reacher: !!user.reacherKey,
       nia: !!user.niaKey,

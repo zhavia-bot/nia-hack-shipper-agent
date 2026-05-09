@@ -9,7 +9,6 @@ type KeyField = {
   arg:
     | "aiGatewayKey"
     | "exaKey"
-    | "browserbaseKey"
     | "resendKey"
     | "reacherKey"
     | "niaKey";
@@ -27,11 +26,6 @@ const FIELDS = {
     arg: "exaKey",
     label: "Exa",
     hint: "Web search sense organ for niche discovery",
-  },
-  browserbase: {
-    arg: "browserbaseKey",
-    label: "Browserbase",
-    hint: "Headless browser sessions for traffic ops",
   },
   resend: {
     arg: "resendKey",

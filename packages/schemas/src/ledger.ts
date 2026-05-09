@@ -33,7 +33,7 @@ export const AuditLogKindSchema = z.enum([
   "session_completed_unpaid",
   "stripe_call",
   "vercel_call",
-  "browserbase_session",
+  "sandbox_session",
   "kill_switch_change",
 ]);
 export type AuditLogKind = z.infer<typeof AuditLogKindSchema>;

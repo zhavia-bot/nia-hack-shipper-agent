@@ -42,7 +42,7 @@ export type BudgetReservation = z.infer<typeof BudgetReservationSchema>;
 export const AssetSpendKindSchema = z.enum([
   "asset_gen",
   "ad_spend",
-  "browserbase",
+  "sandbox",
   "email_send",
   "domain_purchase",
   "llm_inference",
