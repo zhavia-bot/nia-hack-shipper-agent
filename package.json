@@ -25,9 +25,12 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@clerk/shared",
+      "@nestjs/core",
+      "@swc/core",
+      "cbor-extract",
       "esbuild",
-      "sharp",
-      "@clerk/shared"
+      "sharp"
     ]
   },
   "dependencies": {
