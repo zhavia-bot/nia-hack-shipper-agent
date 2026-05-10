@@ -1,4 +1,4 @@
-import type { ExperimentStatus } from "@autoresearch/schemas";
+import type { ExperimentStatus } from "@autodrop/schemas";
 import { betaQuantile } from "./beta.js";
 
 export interface ClassifyInput {

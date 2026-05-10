@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { api } from "@autoresearch/convex/api";
+import { motion } from "motion/react";
+import { api } from "@autodrop/convex/api";
 import { publicEnv } from "@/lib/env";
 import { fmtUsd } from "@/lib/format";
 
@@ -17,49 +18,25 @@ export function DollarTicker() {
   const positive = (net ?? 0) >= 0;
 
   return (
-    <section
-      style={{
-        padding: "1.75rem 2rem",
-        borderRadius: 14,
-        background: "#0e0e0e",
-        color: "#fff",
-        boxShadow: "0 1px 0 rgba(255,255,255,0.06) inset",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "0.85rem",
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "#9aa0a6",
-          marginBottom: "0.4rem",
-        }}
-      >
-        Net dollars (Stripe balance, ledger view)
+    <section className="rounded-xl border border-zinc-800 bg-zinc-950 p-7 text-zinc-100 shadow-sm">
+      <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+        Net dollars · Stripe balance, ledger view
       </div>
-      <div
-        style={{
-          fontSize: "3.4rem",
-          fontWeight: 700,
-          letterSpacing: "-0.02em",
-          color: positive ? "#69f08c" : "#ff8888",
-          fontVariantNumeric: "tabular-nums",
-        }}
+      <motion.div
+        key={net ?? "loading"}
+        initial={{ opacity: 0.5, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18 }}
+        className={
+          "mt-1 text-5xl font-bold tracking-tight tabular-nums " +
+          (positive ? "text-emerald-400" : "text-rose-400")
+        }
       >
         {data ? fmtUsd(net, { sign: true }) : "…"}
-      </div>
+      </motion.div>
       {data && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0,1fr))",
-            gap: "0.75rem",
-            marginTop: "1.1rem",
-            fontSize: "0.95rem",
-            color: "#cfd2d6",
-          }}
-        >
-          <Stat label="Charges" value={fmtUsd(data.charges)} positive />
+        <div className="mt-5 grid grid-cols-3 gap-3 border-t border-zinc-800/80 pt-4">
+          <Stat label="Charges" value={fmtUsd(data.charges)} tone="positive" />
           <Stat label="Refunds" value={fmtUsd(data.refunds)} />
           <Stat label="Ad spend" value={fmtUsd(data.adSpend)} />
         </div>
@@ -71,21 +48,20 @@ export function DollarTicker() {
 function Stat({
   label,
   value,
-  positive,
+  tone,
 }: {
   label: string;
   value: string;
-  positive?: boolean;
+  tone?: "positive";
 }) {
   return (
     <div>
-      <div style={{ color: "#7e848a", fontSize: "0.78rem" }}>{label}</div>
+      <div className="text-[11px] uppercase tracking-wider text-zinc-500">{label}</div>
       <div
-        style={{
-          fontVariantNumeric: "tabular-nums",
-          fontWeight: 600,
-          color: positive ? "#9be4ad" : "#cfd2d6",
-        }}
+        className={
+          "mt-0.5 font-semibold tabular-nums " +
+          (tone === "positive" ? "text-emerald-300" : "text-zinc-200")
+        }
       >
         {value}
       </div>

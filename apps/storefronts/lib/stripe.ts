@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { forConnectedAccount } from "@autoresearch/connect";
+import { forConnectedAccount } from "@autodrop/connect";
 import { env } from "./env.js";
 
 let cached: Stripe | null = null;

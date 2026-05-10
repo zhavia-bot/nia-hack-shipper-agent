@@ -1,5 +1,5 @@
-import type { Channel, Copy } from "@autoresearch/schemas";
-import { createLogger } from "@autoresearch/shared";
+import type { Channel, Copy } from "@autodrop/schemas";
+import { createLogger } from "@autodrop/shared";
 import { reportSpend } from "../budget.js";
 
 const log = createLogger("parent-agent.traffic");

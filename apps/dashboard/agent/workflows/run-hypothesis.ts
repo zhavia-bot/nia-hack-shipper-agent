@@ -1,8 +1,8 @@
 "use workflow";
 
 import { sleep } from "workflow";
-import type { Hypothesis } from "@autoresearch/schemas";
-import { BudgetError, createLogger } from "@autoresearch/shared";
+import type { Hypothesis } from "@autodrop/schemas";
+import { BudgetError, createLogger } from "@autodrop/shared";
 import type { MeasuredOutcome } from "../revenue.js";
 import {
   setupExperiment,

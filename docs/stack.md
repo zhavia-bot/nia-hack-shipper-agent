@@ -5,7 +5,7 @@
 > This document defines the runtime topology, language choices, data ownership,
 > failure model, and deployment story for an autonomous agent whose terminal
 > goal is `maximize $ in Stripe balance`. It assumes the harness pattern
-> defined in `docs/harness.md` (Karpathy-derived autoresearch loop) and does
+> defined in `docs/harness.md` (Karpathy-derived autodrop loop) and does
 > not re-litigate that.
 
 ---
@@ -722,7 +722,7 @@ import { distillLessons } from "./lessons.js";
 import { checkBudget, killSwitchTripped } from "./budget.js";
 import { convex } from "./tools/convex-client.js";
 
-@application({ name: "autoresearch-money-parent" })
+@application({ name: "autodrop-parent" })
 export async function parent() {
   while (true) {
     const halted = await killSwitchTripped();
@@ -769,7 +769,7 @@ export async function parent() {
 ```ts
 // apps/parent-agent/src/child.ts
 import { function as fn } from "@tensorlake/sdk";
-import { Hypothesis } from "@autoresearch/schemas";
+import { Hypothesis } from "@autodrop/schemas";
 import { stripe } from "./tools/stripe.js";
 import { vercel } from "./tools/vercel.js";
 import { generateDeliverable } from "./tools/deliverables/index.js";
@@ -1106,7 +1106,7 @@ Auto-deploy on merge to `main`:
 
 ### 9.3 Secrets
 
-One source of truth: **Doppler** project `autoresearch-money`.
+One source of truth: **Doppler** project `autodrop`.
 - `STRIPE_RESTRICTED_KEY` (rk_live_...)
 - `STRIPE_WEBHOOK_SECRET`
 - `CONVEX_DEPLOY_KEY` (parent-agent → Convex writes)

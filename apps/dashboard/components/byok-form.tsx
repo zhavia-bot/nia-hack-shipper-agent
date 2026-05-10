@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { api } from "@autoresearch/convex/api";
+import { api } from "@autodrop/convex/api";
 import { useState } from "react";
 
 type KeyField = {

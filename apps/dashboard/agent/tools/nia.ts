@@ -28,7 +28,7 @@ async function ensureClient(): Promise<Client> {
     requestInit: { headers: { Authorization: `Bearer ${key}` } },
   });
   const c = new Client(
-    { name: "autoresearch-parent-agent", version: "0.0.0" },
+    { name: "autodrop-parent-agent", version: "0.0.0" },
     { capabilities: {} },
   );
   await c.connect(transport);

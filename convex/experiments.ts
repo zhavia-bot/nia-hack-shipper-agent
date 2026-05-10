@@ -205,6 +205,57 @@ export const mine = query({
 });
 
 /**
+ * Human-side: a single experiment + its tenant for the detail page.
+ * Ownership re-checked here so a stale or guessed id can't leak rows.
+ */
+export const detailForOwner = query({
+  args: { id: v.id("experiments") },
+  handler: async (ctx, { id }) => {
+    const user = await requireUser(ctx);
+    const exp = await ctx.db.get(id);
+    if (!exp || exp.userId !== user._id) return null;
+    const tenant = await ctx.db
+      .query("tenants")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .filter((q) => q.eq(q.field("experimentId"), id))
+      .unique();
+    return { experiment: exp, tenant };
+  },
+});
+
+/**
+ * Human-side: stop a still-pending experiment. We mark it `discard`
+ * and (if a tenant is wired up) flip the tenant to `killed` so the
+ * storefront 404s. Refunds are a separate operation — a kill alone
+ * doesn't move money. Crashed/decided experiments are no-ops to keep
+ * this idempotent for double-clicks.
+ */
+export const stopByOwner = mutation({
+  args: { id: v.id("experiments") },
+  handler: async (ctx, { id }) => {
+    const user = await requireUser(ctx);
+    const exp = await ctx.db.get(id);
+    if (!exp) throw new Error("experiment not found");
+    if (exp.userId !== user._id) throw new Error("not your experiment");
+    if (exp.status === "pending") {
+      await ctx.db.patch(id, {
+        status: "discard",
+        decidedAt: Date.now(),
+        notes: "stopped by operator",
+      });
+    }
+    const tenant = await ctx.db
+      .query("tenants")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .filter((q) => q.eq(q.field("experimentId"), id))
+      .unique();
+    if (tenant && tenant.status !== "killed") {
+      await ctx.db.patch(tenant._id, { status: "killed" });
+    }
+  },
+});
+
+/**
  * Aggregate stats per bucket for Thompson sampling. Returns rows of
  * { bucket, alpha, beta, n } where alpha = 1 + total conversions and
  * beta = 1 + total non-conversions across all completed experiments

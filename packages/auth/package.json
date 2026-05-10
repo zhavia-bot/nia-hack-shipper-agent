@@ -1,5 +1,5 @@
 {
-  "name": "@autoresearch/auth",
+  "name": "@autodrop/auth",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,8 +17,8 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
-    "@autoresearch/schemas": "workspace:*",
-    "@autoresearch/shared": "workspace:*",
+    "@autodrop/schemas": "workspace:*",
+    "@autodrop/shared": "workspace:*",
     "jose": "^5.0.0"
   },
   "devDependencies": {

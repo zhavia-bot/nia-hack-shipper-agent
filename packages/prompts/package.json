@@ -1,5 +1,5 @@
 {
-  "name": "@autoresearch/prompts",
+  "name": "@autodrop/prompts",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
-    "@autoresearch/schemas": "workspace:*"
+    "@autodrop/schemas": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^6.0.0"

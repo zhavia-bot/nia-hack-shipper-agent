@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
-import { api } from "@autoresearch/convex/api";
-import { platformStripe } from "@autoresearch/connect";
+import { api } from "@autodrop/convex/api";
+import { platformStripe } from "@autodrop/connect";
 import { platformStripeKey } from "@/lib/convex-server";
 
 export const runtime = "nodejs";

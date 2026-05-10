@@ -3,8 +3,8 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import {
   createAccountLink,
   createConnectedAccount,
-} from "@autoresearch/connect";
-import { api } from "@autoresearch/convex/api";
+} from "@autodrop/connect";
+import { api } from "@autodrop/convex/api";
 import {
   convexAsUser,
   dashboardOrigin,

@@ -8,7 +8,7 @@
  * call sites are easy to audit, and (2) translate Convex errors into
  * typed BudgetError instances for the failure model in §8.
  */
-import { BudgetError } from "@autoresearch/shared";
+import { BudgetError } from "@autodrop/shared";
 import { convexClient } from "./tools/convex-client.js";
 
 export interface ReserveArgs {

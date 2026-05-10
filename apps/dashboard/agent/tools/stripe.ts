@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { StripeActionDeniedError } from "@autoresearch/shared";
+import { StripeActionDeniedError } from "@autodrop/shared";
 import { env } from "../env.js";
 
 /**
@@ -66,7 +66,7 @@ let stripeCached: Stripe | null = null;
 function rawStripe(): Stripe {
   if (!stripeCached) {
     stripeCached = new Stripe(env().STRIPE_RESTRICTED_KEY, {
-      apiVersion: "2025-09-30.clover",
+      apiVersion: "2025-08-27.basil",
       typescript: true,
     });
   }

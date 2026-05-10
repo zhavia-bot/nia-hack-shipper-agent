@@ -1,4 +1,4 @@
-import type { Experiment } from "@autoresearch/schemas";
+import type { Experiment } from "@autodrop/schemas";
 import type { PromptTemplate } from "./types.js";
 
 export interface DistillInput {

@@ -1,5 +1,5 @@
-import type { IdentityClaims, IdentityRole } from "@autoresearch/schemas";
-import { IdentityError } from "@autoresearch/shared";
+import type { IdentityClaims, IdentityRole } from "@autodrop/schemas";
+import { IdentityError } from "@autodrop/shared";
 import type { KeyLike } from "jose";
 import { verifyToken } from "./sign.js";
 

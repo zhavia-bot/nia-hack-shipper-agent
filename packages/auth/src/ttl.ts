@@ -1,4 +1,4 @@
-import type { IdentityRole } from "@autoresearch/schemas";
+import type { IdentityRole } from "@autodrop/schemas";
 
 /**
  * Per-identity default TTLs. Tighter for agent (it can re-mint at boot

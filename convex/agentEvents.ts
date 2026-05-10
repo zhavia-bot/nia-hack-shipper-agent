@@ -64,3 +64,22 @@ export const recentForCurrentUser = query({
       .take(Math.min(limit ?? 50, 200));
   },
 });
+
+/**
+ * Human-side: tail filtered to a single experiment, for the
+ * experiment-detail page. We use `by_user_experiment` so a malicious
+ * experimentId can't surface another tenant's rows.
+ */
+export const recentForExperiment = query({
+  args: { experimentId: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, { experimentId, limit }) => {
+    const user = await requireUser(ctx);
+    return ctx.db
+      .query("agentEvents")
+      .withIndex("by_user_experiment", (q) =>
+        q.eq("userId", user._id).eq("experimentId", experimentId),
+      )
+      .order("desc")
+      .take(Math.min(limit ?? 100, 200));
+  },
+});

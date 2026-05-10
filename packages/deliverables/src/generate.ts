@@ -1,4 +1,3 @@
-import type { DeliverableKind } from "@autoresearch/schemas";
 import { generateMarkdown } from "./markdown.js";
 import { generateJson } from "./json.js";
 import { generatePdf } from "./pdf.js";
@@ -8,6 +7,7 @@ import {
   MarkdownSpecSchema,
   JsonSpecSchema,
   PackSpecSchema,
+  type DeliverableKind,
 } from "./types.js";
 
 export interface GeneratedDeliverable {

@@ -1,112 +1,78 @@
 import Link from "next/link";
+import { ArrowRight } from "@/components/icons";
+import { Button } from "@/components/ui/button";
 import { DollarTicker } from "@/components/dollar-ticker";
 import { BudgetState } from "@/components/budget-state";
 import { RecentLedger } from "@/components/recent-ledger";
-import { ExperimentsFeed } from "@/components/experiments-feed";
+import { ExperimentsTable } from "@/components/experiments-table";
 import { BucketHeatmap } from "@/components/bucket-heatmap";
-import { RunGenerationButton } from "@/components/run-generation-button";
+import { StartNComposer } from "@/components/start-n-composer";
 import { TenantsPanel } from "@/components/tenants-panel";
 import { AgentLogStream } from "@/components/agent-log-stream";
+import { ExploreExploitSlider } from "@/components/explore-exploit-slider";
+import { FadeIn, Stagger, StaggerItem } from "@/components/motion-primitives";
 
 export default function DashboardPage() {
   return (
-    <main
-      style={{
-        maxWidth: 1200,
-        margin: "0 auto",
-        padding: "2rem 1.5rem 4rem",
-        display: "grid",
-        gap: "1.5rem",
-      }}
-    >
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-          gap: "1rem",
-        }}
-      >
+    <main className="mx-auto max-w-6xl px-6 py-8">
+      <FadeIn className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div
-            style={{
-              fontSize: "0.85rem",
-              color: "#777",
-              textTransform: "uppercase",
-              letterSpacing: "0.07em",
-            }}
-          >
-            autoresearch
-          </div>
-          <h1 style={{ fontSize: "1.6rem", margin: "0.2rem 0 0" }}>
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Live ops
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            Overview
           </h1>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <RunGenerationButton />
-          <Link
-            href="/console/settings/stripe"
-            style={{
-              fontSize: "0.85rem",
-              color: "#444",
-              textDecoration: "none",
-              border: "1px solid #d6d3cc",
-              padding: "0.4rem 0.8rem",
-              borderRadius: 8,
-              background: "#fafaf7",
-            }}
-          >
-            Stripe →
-          </Link>
-          <Link
-            href="/console/settings/keys"
-            style={{
-              fontSize: "0.85rem",
-              color: "#444",
-              textDecoration: "none",
-              border: "1px solid #d6d3cc",
-              padding: "0.4rem 0.8rem",
-              borderRadius: 8,
-              background: "#fafaf7",
-            }}
-          >
-            API keys →
-          </Link>
+        <StartNComposer />
+      </FadeIn>
+
+      <FadeIn delay={0.05} className="mb-6">
+        <DollarTicker />
+      </FadeIn>
+
+      <Stagger className="mb-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <StaggerItem>
+          <AgentLogStream limit={50} />
+        </StaggerItem>
+        <StaggerItem>
+          <div className="grid gap-6">
+            <ExploreExploitSlider />
+            <BudgetState />
+          </div>
+        </StaggerItem>
+      </Stagger>
+
+      <FadeIn delay={0.05} className="mb-6">
+        <BucketHeatmap />
+      </FadeIn>
+
+      <Stagger className="mb-6 grid gap-6 lg:grid-cols-2">
+        <StaggerItem>
+          <RecentLedger />
+        </StaggerItem>
+        <StaggerItem>
+          <TenantsPanel />
+        </StaggerItem>
+      </Stagger>
+
+      <FadeIn delay={0.05}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Recent experiments
+          </h2>
+          <Button asChild size="sm" variant="ghost" className="gap-1">
+            <Link href="/console/experiments">
+              See all <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
         </div>
-      </header>
+        <ExperimentsTable limit={10} showFilter={false} />
+      </FadeIn>
 
-      <DollarTicker />
-
-      <AgentLogStream />
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-          gap: "1.5rem",
-        }}
-      >
-        <BudgetState />
-        <RecentLedger />
-      </div>
-
-      <BucketHeatmap />
-
-      <TenantsPanel />
-
-      <ExperimentsFeed />
-
-      <footer
-        style={{
-          color: "#999",
-          fontSize: "0.8rem",
-          textAlign: "center",
-          paddingTop: "1.5rem",
-          borderTop: "1px solid #e8e6e1",
-        }}
-      >
+      <p className="mt-10 border-t border-border/60 pt-4 text-center text-xs text-muted-foreground">
         Convex realtime — auto-updates as the webhook fires.
-      </footer>
+      </p>
     </main>
   );
 }

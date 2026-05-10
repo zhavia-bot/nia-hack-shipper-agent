@@ -1,5 +1,5 @@
-import { classifyROAS } from "@autoresearch/bandit";
-import { createLogger } from "@autoresearch/shared";
+import { classifyROAS } from "@autodrop/bandit";
+import { createLogger } from "@autodrop/shared";
 import { measure } from "./revenue.js";
 import { convexClient } from "./tools/convex-client.js";
 

@@ -3,11 +3,11 @@ import {
   IdentityClaimsSchema,
   type IdentityClaims,
   type IdentityRole,
-} from "@autoresearch/schemas";
-import { IdentityError } from "@autoresearch/shared";
+} from "@autodrop/schemas";
+import { IdentityError } from "@autodrop/shared";
 import { defaultTtl } from "./ttl.js";
 
-export const ISSUER = "autoresearch-money";
+export const ISSUER = "autodrop";
 const ALG = "RS256";
 
 export interface MintArgs {

@@ -7,13 +7,13 @@ import {
   ChannelSchema,
   PhysicalCategorySchema,
   PriceTierSchema,
-} from "@autoresearch/schemas";
+} from "@autodrop/schemas";
 import {
   thompsonSampleBuckets,
   type BucketStats,
-} from "@autoresearch/bandit";
-import { proposeHypothesis, render } from "@autoresearch/prompts";
-import { createLogger, ulid } from "@autoresearch/shared";
+} from "@autodrop/bandit";
+import { proposeHypothesis, render } from "@autodrop/prompts";
+import { createLogger, ulid } from "@autodrop/shared";
 import { generateJson } from "./tools/llm.js";
 import { convexClient } from "./tools/convex-client.js";
 import { reacher } from "./tools/reacher.js";

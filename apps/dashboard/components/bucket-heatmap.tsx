@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { useMemo } from "react";
-import { api } from "@autoresearch/convex/api";
+import { api } from "@autodrop/convex/api";
 import { publicEnv } from "@/lib/env";
 import { fmtRoas } from "@/lib/format";
 
@@ -54,28 +54,15 @@ export function BucketHeatmap() {
   }, [data]);
 
   return (
-    <section
-      style={{
-        background: "#fff",
-        border: "1px solid #e8e6e1",
-        borderRadius: 12,
-        padding: "1.25rem 1.5rem",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "0.78rem",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "#777",
-          marginBottom: "0.85rem",
-        }}
-      >
-        Bucket heatmap (niche × channel, mean ROAS)
+    <section className="rounded-xl border bg-card p-5">
+      <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        Bucket heatmap · niche × channel, mean ROAS
       </div>
-      {data === undefined && <p style={{ color: "#999" }}>Loading…</p>}
+      {data === undefined && (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      )}
       {data && data.length === 0 && (
-        <p style={{ color: "#999" }}>No experiments yet.</p>
+        <p className="text-sm text-muted-foreground">No experiments yet.</p>
       )}
       {data && data.length > 0 && (
         <div style={{ overflowX: "auto" }}>

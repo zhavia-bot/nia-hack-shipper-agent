@@ -4,8 +4,8 @@ import {
   HypothesisSchema,
   type Lesson,
   type Tenant,
-} from "@autoresearch/schemas";
-import { createLogger } from "@autoresearch/shared";
+} from "@autodrop/schemas";
+import { createLogger } from "@autodrop/shared";
 import { propose } from "../propose.js";
 import { runHypothesis } from "./run-hypothesis.js";
 import { selectAndClassify, type ChildOutcome } from "../select.js";

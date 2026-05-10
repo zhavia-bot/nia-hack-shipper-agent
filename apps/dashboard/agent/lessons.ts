@@ -3,9 +3,9 @@ import {
   LessonSchema,
   type Bucket,
   type Lesson,
-} from "@autoresearch/schemas";
-import { distillLessons, render } from "@autoresearch/prompts";
-import { createLogger } from "@autoresearch/shared";
+} from "@autodrop/schemas";
+import { distillLessons, render } from "@autodrop/prompts";
+import { createLogger } from "@autodrop/shared";
 import { generateJson, MODEL_SONNET } from "./tools/llm.js";
 import { convexClient } from "./tools/convex-client.js";
 import { nia } from "./tools/nia.js";
@@ -140,7 +140,7 @@ async function indexLessonsToNia(lessons: Lesson[], generation: number): Promise
   await nia.callTool(candidate.name, {
     text,
     tag: `gen-${generation}`,
-    source: "autoresearch-lessons",
+    source: "autodrop-lessons",
   });
   log.info("nia: lessons indexed", {
     tool: candidate.name,

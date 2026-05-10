@@ -1,5 +1,5 @@
 {
-  "name": "@autoresearch/convex",
+  "name": "@autodrop/convex",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,8 +11,7 @@
       "import": "./_generated/api.js"
     },
     "./dataModel": {
-      "types": "./_generated/dataModel.d.ts",
-      "import": "./_generated/dataModel.js"
+      "types": "./_generated/dataModel.d.ts"
     }
   },
   "scripts": {

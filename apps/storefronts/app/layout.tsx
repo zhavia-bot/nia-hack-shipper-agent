@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 export const metadata = {
   title: "Storefront",
-  description: "Autoresearch tenant storefront.",
+  description: "Autodrop tenant storefront.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

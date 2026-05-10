@@ -1,6 +1,6 @@
 import { experimental_generateImage as generateImage_ai } from "ai";
 import { createGateway } from "@ai-sdk/gateway";
-import { createLogger } from "@autoresearch/shared";
+import { createLogger } from "@autodrop/shared";
 import { reportSpend } from "../budget.js";
 import { getKey } from "../run-context.js";
 

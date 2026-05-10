@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getAccountStatus } from "@autoresearch/connect";
-import { api } from "@autoresearch/convex/api";
+import { getAccountStatus } from "@autodrop/connect";
+import { api } from "@autodrop/convex/api";
 import {
   convexAsUser,
   dashboardOrigin,

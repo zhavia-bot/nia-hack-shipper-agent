@@ -49,7 +49,7 @@ async function ensureClientForShop(shopId: number): Promise<Client> {
     requestInit: { headers: authHeaders(shopId) },
   });
   const c = new Client(
-    { name: "autoresearch-parent-agent", version: "0.0.0" },
+    { name: "autodrop-parent-agent", version: "0.0.0" },
     { capabilities: {} }
   );
   await c.connect(transport);

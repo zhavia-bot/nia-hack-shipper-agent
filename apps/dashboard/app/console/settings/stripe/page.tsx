@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "convex/react";
-import { api } from "@autoresearch/convex/api";
+import { api } from "@autodrop/convex/api";
 
 export default function StripeSettingsPage() {
   const me = useQuery(api.users.current, {});

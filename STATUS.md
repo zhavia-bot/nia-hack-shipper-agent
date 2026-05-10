@@ -48,10 +48,10 @@ Vercel-all-in pivot done. Tensorlake stub removed; durable orchestration is Verc
 
 ### Smoke-test post-P7
 
-1. `pnpm --filter @autoresearch/dashboard --filter convex dev` boots cleanly
+1. `pnpm --filter @autodrop/dashboard --filter convex dev` boots cleanly
 2. Sign up via Clerk, BYOK form shows AI Gateway + Exa fields
 3. `/console` "Run a generation" button → returns 501 with the local-dev hint
-4. Locally: `ACTING_USER_ID=<uid> pnpm --filter @autoresearch/parent-agent dev` — orchestrator entrypoint fires `runGeneration` once
+4. Locally: `ACTING_USER_ID=<uid> pnpm --filter @autodrop/parent-agent dev` — orchestrator entrypoint fires `runGeneration` once
 5. (Deferred) wire `start(runGeneration)` once Vercel workflow runtime + plugin are configured on the deployment
 
 ### Known follow-ups (out of P7)

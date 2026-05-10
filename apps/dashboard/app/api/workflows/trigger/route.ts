@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import { start } from "workflow/api";
-import { api } from "@autoresearch/convex/api";
+import { api } from "@autodrop/convex/api";
 import { runGeneration } from "@/agent/workflows/run-generation";
 
 /**

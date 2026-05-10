@@ -8,8 +8,8 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
-} from "lucide-react";
-import { api } from "@autoresearch/convex/api";
+} from "@/components/icons";
+import { api } from "@autodrop/convex/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -225,7 +225,7 @@ export default async function TenantPage({ params }: PageProps) {
           <p>Refunds within 7 days, no questions asked.</p>
           <p>
             Email{" "}
-            <a className="underline" href="mailto:support@autoresearch.example">
+            <a className="underline" href="mailto:support@autodrop.example">
               support
             </a>{" "}
             with your receipt and we'll handle it.

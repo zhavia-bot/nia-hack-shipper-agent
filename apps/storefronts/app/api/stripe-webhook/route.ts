@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type Stripe from "stripe";
 import { Resend } from "resend";
-import { api } from "@autoresearch/convex/api";
+import { api } from "@autodrop/convex/api";
 import { convex, storefrontToken } from "@/lib/convex";
 import { stripe, stripeForTenant } from "@/lib/stripe";
 import { env } from "@/lib/env";
@@ -287,7 +287,7 @@ async function settleDemoOrder(
   await acct.refunds.create({
     payment_intent: piId,
     metadata: {
-      reason: "autoresearch_demo_settlement",
+      reason: "autodrop_demo_settlement",
       experimentId,
       tenantSubdomain,
     },
@@ -320,10 +320,10 @@ async function settleDemoOrder(
     return;
   }
   const resend = new Resend(settlement.resendKey);
-  const fromAddr = settlement.fromEmail ?? "support@autoresearch.example";
+  const fromAddr = settlement.fromEmail ?? "support@autodrop.example";
   const ownerLabel = settlement.ownerName ?? "the operator";
   await resend.emails.send({
-    from: `Autoresearch demo <${fromAddr}>`,
+    from: `Autodrop demo <${fromAddr}>`,
     to: [customerEmail],
     subject: "Your order has been refunded",
     text: [

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, ShoppingBag } from "lucide-react";
+import { Loader, ShoppingBag } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
 export function CheckoutButton({ subdomain }: { subdomain: string }) {
@@ -39,7 +39,7 @@ export function CheckoutButton({ subdomain }: { subdomain: string }) {
         className="w-full text-base font-semibold"
       >
         {loading ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <Loader className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <ShoppingBag className="mr-2 h-4 w-4" />
         )}

@@ -1,5 +1,5 @@
 import "server-only";
-import { api } from "@autoresearch/convex/api";
+import { api } from "@autodrop/convex/api";
 import { convex } from "./convex.js";
 import { env } from "./env.js";
 

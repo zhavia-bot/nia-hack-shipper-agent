@@ -1,6 +1,6 @@
 import { convexClient } from "./tools/convex-client.js";
 import { currentContext } from "./run-context.js";
-import { createLogger } from "@autoresearch/shared";
+import { createLogger } from "@autodrop/shared";
 
 const log = createLogger("parent-agent.events");
 

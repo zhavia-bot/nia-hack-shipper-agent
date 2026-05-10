@@ -1,4 +1,4 @@
-import type { Bucket, Lesson } from "@autoresearch/schemas";
+import type { Bucket, Lesson } from "@autodrop/schemas";
 import type { PromptTemplate } from "./types.js";
 
 export interface ProposeInput {

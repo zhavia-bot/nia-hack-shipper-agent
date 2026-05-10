@@ -5,8 +5,8 @@ import {
   ProductSourceSchema,
   type Hypothesis,
   type ProductSource,
-} from "@autoresearch/schemas";
-import { createLogger } from "@autoresearch/shared";
+} from "@autodrop/schemas";
+import { createLogger } from "@autodrop/shared";
 import { reserveBudget, finalizeBudget, releaseBudget } from "../../budget.js";
 import { measure, type MeasuredOutcome } from "../../revenue.js";
 import { stripe } from "../../tools/stripe.js";

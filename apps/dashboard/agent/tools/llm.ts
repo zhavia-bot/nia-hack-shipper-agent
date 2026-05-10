@@ -1,8 +1,8 @@
 import { generateObject } from "ai";
 import { createGateway } from "@ai-sdk/gateway";
 import { z } from "zod";
-import { createLogger, type Logger } from "@autoresearch/shared";
-import type { RenderedPrompt } from "@autoresearch/prompts";
+import { createLogger, type Logger } from "@autodrop/shared";
+import type { RenderedPrompt } from "@autodrop/prompts";
 import { getKey } from "../run-context.js";
 
 const log: Logger = createLogger("parent-agent.llm");
@@ -43,14 +43,14 @@ export async function generateJson<T>(args: JsonGenArgs<T>): Promise<T> {
   const modelId = args.model ?? MODEL_OPUS;
   const gw = gatewayForCurrent();
   try {
-    const { object } = await generateObject<T>({
+    const { object } = await generateObject({
       model: gw(modelId),
       schema: args.schema,
       system: args.prompt.system,
       prompt: args.prompt.user,
       maxTokens: args.maxTokens ?? 2048,
     });
-    return object;
+    return object as T;
   } catch (err) {
     log.error("generateJson failed", {
       prompt: args.prompt.name,

@@ -1,4 +1,4 @@
-import { createLogger } from "@autoresearch/shared";
+import { createLogger } from "@autodrop/shared";
 import { env } from "../env.js";
 
 const log = createLogger("parent-agent.vercel");

@@ -1,9 +1,9 @@
 /**
  * Vendored identity verification for Convex mutations. Equivalent to
- * `@autoresearch/auth` but local to the convex/ deploy bundle to avoid
+ * `@autodrop/auth` but local to the convex/ deploy bundle to avoid
  * any concern about workspace-package resolution inside the Convex runtime.
  *
- * Token shape: RS256 JWT, issuer "autoresearch-money", payload includes
+ * Token shape: RS256 JWT, issuer "autodrop", payload includes
  * `role` ∈ {agent, stripe-webhook, refund-worker, dashboard, admin,
  * budget-watchdog}. Public key comes from the AUTH_JWT_PUBLIC_KEY Convex
  * env var (base64-encoded PEM, set via `npx convex env set
@@ -21,7 +21,7 @@
  */
 import { jwtVerify, importSPKI, type KeyLike } from "jose";
 
-const ISSUER = "autoresearch-money";
+const ISSUER = "autodrop";
 const ALG = "RS256";
 
 export type IdentityRole =

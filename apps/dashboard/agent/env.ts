@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { loadEnv } from "@autoresearch/shared";
+import { loadEnv } from "@autodrop/shared";
 
 // P7.2 — platform stops paying for anything the agent burns. The platform
 // only owns: Stripe of-record, Convex (canonical state), Vercel (hosting +

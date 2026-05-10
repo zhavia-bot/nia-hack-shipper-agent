@@ -1,6 +1,12 @@
 import { z } from "zod";
 
 /**
+ * Discriminator for the four deliverable kinds. Local to this package —
+ * other workspaces that produce deliverables import it from here.
+ */
+export type DeliverableKind = "pdf" | "md" | "json" | "zip";
+
+/**
  * Spec shapes for each deliverable kind. The LLM is constrained to emit
  * these via Zod validation in the child function before dispatching to a
  * generator. Keeping the spec narrow keeps generators pure and stable.

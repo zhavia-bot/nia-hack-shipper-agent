@@ -1,4 +1,4 @@
-import type { Bucket } from "@autoresearch/schemas";
+import type { Bucket } from "@autodrop/schemas";
 import { betaSample } from "./beta.js";
 
 export interface BucketStats {

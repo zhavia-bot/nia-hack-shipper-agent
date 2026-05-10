@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { api } from "@autoresearch/convex/api";
+import { api } from "@autodrop/convex/api";
 import { convexAsUser } from "@/lib/convex-server";
 
 export const runtime = "nodejs";

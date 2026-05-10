@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
-import { api } from "@autoresearch/convex/api";
-import { forConnectedAccount } from "@autoresearch/connect";
+import { api } from "@autodrop/convex/api";
+import { forConnectedAccount } from "@autodrop/connect";
 import { convexAsUser, platformStripeKey } from "@/lib/convex-server";
 
 export const runtime = "nodejs";
@@ -107,7 +107,7 @@ export async function POST(
       await stripe.refunds.create({
         payment_intent: pi.id,
         metadata: {
-          reason: "autoresearch_operator_force_refund",
+          reason: "autodrop_operator_force_refund",
           experimentId: ctx.experimentId,
           tenantSubdomain: subdomain,
         },

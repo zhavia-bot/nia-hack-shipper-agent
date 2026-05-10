@@ -3,7 +3,7 @@ import { ConvexClientProvider } from "@/lib/convex-provider";
 import "./globals.css";
 
 export const metadata = {
-  title: "Autoresearch — autonomous money agent",
+  title: "Autodrop — autonomous money agent",
   description:
     "An agent whose terminal goal is maximizing $ in Stripe balance. Spawns parallel hypotheses, ships products, measures ROAS.",
 };

@@ -1,5 +1,5 @@
 {
-  "name": "@autoresearch/deliverables",
+  "name": "@autodrop/deliverables",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
-    "@autoresearch/schemas": "workspace:*",
+    "@autodrop/schemas": "workspace:*",
     "pdf-lib": "^1.17.1",
     "jszip": "^3.10.1",
     "zod": "^4.0.0"

@@ -4,8 +4,8 @@ import {
   ArrowRight,
   Bot,
   CircleDollarSign,
-  FlaskConical,
-  Gauge,
+  TestTube,
+  Dashboard,
   GitBranch,
   Lock,
   Rocket,
@@ -13,7 +13,7 @@ import {
   Sparkles,
   Workflow,
   Zap,
-} from "lucide-react";
+} from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +25,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { LiveRevenueTicker } from "@/components/live-revenue-ticker";
+import {
+  FadeIn,
+  HeroReveal,
+  SoftPulse,
+  Stagger,
+  StaggerItem,
+} from "@/components/motion-primitives";
 
 const stack = [
   "Vercel Workflows",
@@ -43,7 +50,7 @@ const stack = [
 
 const phases = [
   {
-    icon: FlaskConical,
+    icon: TestTube,
     title: "Hypothesize",
     body:
       "Parent agent samples trending TikTok-Shop niches via Reacher's live shop feed and grounds them with Nia deep-research priors. A Thompson-sampled bandit picks 70% exploit / 30% explore by default — operator can pull the slider either way.",
@@ -61,7 +68,7 @@ const phases = [
       "Tenant goes live on a *.team.vercel.app subdomain with a Stripe Checkout Session minted on the operator's connected account. Funds land directly in their Stripe balance — no platform fee, no escrow, no rehydration.",
   },
   {
-    icon: Gauge,
+    icon: Dashboard,
     title: "Measure",
     body:
       "Stripe webhooks land in Convex. Revenue is booked only on confirmed paid sessions, attributed via client_reference_id. ROAS feeds back into the bandit; lessons distill into Nia for the next generation's priors.",
@@ -105,7 +112,7 @@ export default function LandingPage() {
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-foreground text-background">
             <Bot className="h-4 w-4" />
           </div>
-          <span className="text-sm font-semibold tracking-tight">autoresearch</span>
+          <span className="text-sm font-semibold tracking-tight">autodrop</span>
           <Badge variant="secondary" className="ml-2 text-[10px] font-medium uppercase tracking-wider">
             hackathon build
           </Badge>
@@ -145,56 +152,66 @@ export default function LandingPage() {
       </header>
 
       <section className="mx-auto max-w-6xl px-6 pt-12 pb-20 sm:pt-20">
-        <Badge
-          variant="outline"
-          className="mb-6 gap-1.5 rounded-full border-accent/40 bg-accent/5 px-3 py-1 text-xs text-accent-foreground/80"
-        >
-          <Sparkles className="h-3 w-3 text-accent" />
-          Terminal goal: maximize $ in Stripe balance
-        </Badge>
-        <h1 className="max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
-          An autonomous agent that hypothesis-tests TikTok-Shop products{" "}
-          <span className="text-accent">until it finds one that converts.</span>
-        </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Connect your Stripe (Standard via Connect — funds land in your
-          balance, no platform fee), drop in your AI Gateway, Reacher, Nia,
-          and Resend keys, and the parent agent spawns eight parallel
-          children every cycle. Each one scouts a real product on Temu,
-          re-skins the photos with FLUX 2, ships a storefront, and measures
-          conversion — all on your account, all in under an hour. Every
-          paid order auto-refunds; the conversion signal is the artifact.
-        </p>
+        <HeroReveal>
+          <Badge
+            variant="outline"
+            className="mb-6 gap-1.5 rounded-full border-accent/40 bg-accent/5 px-3 py-1 text-xs text-accent-foreground/80"
+          >
+            <SoftPulse className="inline-flex">
+              <Sparkles className="h-3 w-3 text-accent" />
+            </SoftPulse>
+            Terminal goal: maximize $ in Stripe balance
+          </Badge>
+        </HeroReveal>
+        <HeroReveal delay={0.08}>
+          <h1 className="max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
+            An autonomous agent that hypothesis-tests TikTok-Shop products{" "}
+            <span className="text-accent">until it finds one that converts.</span>
+          </h1>
+        </HeroReveal>
+        <HeroReveal delay={0.16}>
+          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+            Connect your Stripe (Standard via Connect — funds land in your
+            balance, no platform fee), drop in your AI Gateway, Reacher, Nia,
+            and Resend keys, and the parent agent spawns eight parallel
+            children every cycle. Each one scouts a real product on Temu,
+            re-skins the photos with FLUX 2, ships a storefront, and measures
+            conversion — all on your account, all in under an hour. Every
+            paid order auto-refunds; the conversion signal is the artifact.
+          </p>
+        </HeroReveal>
 
-        <div className="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <Show when="signed-out">
-            <Button asChild size="lg" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
-              <Link href="/sign-up">
-                Run the agent <ArrowRight className="h-4 w-4" />
-              </Link>
+        <HeroReveal delay={0.24}>
+          <div className="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+            <Show when="signed-out">
+              <Button asChild size="lg" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
+                <Link href="/sign-up">
+                  Run the agent <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </Show>
+            <Show when="signed-in">
+              <Button asChild size="lg" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
+                <Link href="/console">
+                  Open console <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </Show>
+            <Button asChild size="lg" variant="ghost" className="gap-2">
+              <Link href="#how">See the architecture</Link>
             </Button>
-          </Show>
-          <Show when="signed-in">
-            <Button asChild size="lg" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
-              <Link href="/console">
-                Open console <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </Show>
-          <Button asChild size="lg" variant="ghost" className="gap-2">
-            <Link href="#how">See the architecture</Link>
-          </Button>
-        </div>
+          </div>
+        </HeroReveal>
 
-        <div className="mt-14">
+        <FadeIn delay={0.32} className="mt-14">
           <LiveRevenueTicker />
-        </div>
+        </FadeIn>
       </section>
 
       <Separator className="mx-auto max-w-6xl" />
 
       <section id="how" className="mx-auto max-w-6xl px-6 py-20">
-        <div className="mb-10 max-w-2xl">
+        <FadeIn className="mb-10 max-w-2xl">
           <Badge variant="secondary" className="mb-3 text-[10px] uppercase tracking-wider">
             <Workflow className="mr-1 h-3 w-3" /> Loop
           </Badge>
@@ -206,35 +223,37 @@ export default function LandingPage() {
             isolation. Wins survive. Losses become lessons. The bandit gets
             sharper every generation.
           </p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        </FadeIn>
+        <Stagger className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {phases.map((p, i) => (
-            <Card key={p.title} className="border-border/60 bg-card/50 backdrop-blur-sm">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent/10 text-accent">
-                    <p.icon className="h-4 w-4" />
+            <StaggerItem key={p.title}>
+              <Card className="h-full border-border/60 bg-card/50 backdrop-blur-sm transition-shadow hover:shadow-md">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent/10 text-accent">
+                      <p.icon className="h-4 w-4" />
+                    </div>
+                    <span className="text-xs font-mono text-muted-foreground">
+                      0{i + 1}
+                    </span>
                   </div>
-                  <span className="text-xs font-mono text-muted-foreground">
-                    0{i + 1}
-                  </span>
-                </div>
-                <CardTitle className="mt-3 text-xl">{p.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-sm leading-relaxed">
-                  {p.body}
-                </CardDescription>
-              </CardContent>
-            </Card>
+                  <CardTitle className="mt-3 text-xl">{p.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-sm leading-relaxed">
+                    {p.body}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-20">
-        <div className="mb-10 max-w-2xl">
+        <FadeIn className="mb-10 max-w-2xl">
           <Badge variant="secondary" className="mb-3 text-[10px] uppercase tracking-wider">
-            <Gauge className="mr-1 h-3 w-3" /> Operator controls
+            <Dashboard className="mr-1 h-3 w-3" /> Operator controls
           </Badge>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             You stay in the loop without micromanaging it.
@@ -245,57 +264,63 @@ export default function LandingPage() {
             moments, and a single slider that decides how much risk the
             next generation takes.
           </p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="border-border/60">
-            <CardHeader>
-              <Sparkles className="h-5 w-5 text-accent" />
-              <CardTitle className="mt-3 text-base">Live agent stream</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-sm leading-relaxed">
-                Convex realtime sub of the agent&rsquo;s narrative —
-                generation start, scouted product, storefront live, measured
-                ROAS, settlement. No polling, no refresh button.
-              </CardDescription>
-            </CardContent>
-          </Card>
-          <Card className="border-border/60">
-            <CardHeader>
-              <ShieldCheck className="h-5 w-5 text-accent" />
-              <CardTitle className="mt-3 text-base">
-                Kill + force-refund
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-sm leading-relaxed">
-                One click flips a tenant to <code>killed</code> (storefront
-                404s, agent moves on). A second sweeps every payment intent
-                on the connected account and refunds it via the
-                Stripe-Account header.
-              </CardDescription>
-            </CardContent>
-          </Card>
-          <Card className="border-border/60">
-            <CardHeader>
-              <Workflow className="h-5 w-5 text-accent" />
-              <CardTitle className="mt-3 text-base">
-                Explore / exploit slider
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-sm leading-relaxed">
-                One number in [0, 1]. Pull right to compound proven
-                buckets; pull left to find new winners. The agent re-reads
-                it at the start of every generation.
-              </CardDescription>
-            </CardContent>
-          </Card>
-        </div>
+        </FadeIn>
+        <Stagger className="grid gap-4 sm:grid-cols-3">
+          <StaggerItem>
+            <Card className="h-full border-border/60 transition-shadow hover:shadow-md">
+              <CardHeader>
+                <Sparkles className="h-5 w-5 text-accent" />
+                <CardTitle className="mt-3 text-base">Live agent stream</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-sm leading-relaxed">
+                  Convex realtime sub of the agent&rsquo;s narrative —
+                  generation start, scouted product, storefront live, measured
+                  ROAS, settlement. No polling, no refresh button.
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+          <StaggerItem>
+            <Card className="h-full border-border/60 transition-shadow hover:shadow-md">
+              <CardHeader>
+                <ShieldCheck className="h-5 w-5 text-accent" />
+                <CardTitle className="mt-3 text-base">
+                  Kill + force-refund
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-sm leading-relaxed">
+                  One click flips a tenant to <code>killed</code> (storefront
+                  404s, agent moves on). A second sweeps every payment intent
+                  on the connected account and refunds it via the
+                  Stripe-Account header.
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+          <StaggerItem>
+            <Card className="h-full border-border/60 transition-shadow hover:shadow-md">
+              <CardHeader>
+                <Workflow className="h-5 w-5 text-accent" />
+                <CardTitle className="mt-3 text-base">
+                  Explore / exploit slider
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-sm leading-relaxed">
+                  One number in [0, 1]. Pull right to compound proven
+                  buckets; pull left to find new winners. The agent re-reads
+                  it at the start of every generation.
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+        </Stagger>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-20">
-        <div className="mb-10 max-w-2xl">
+        <FadeIn className="mb-10 max-w-2xl">
           <Badge variant="secondary" className="mb-3 text-[10px] uppercase tracking-wider">
             <ShieldCheck className="mr-1 h-3 w-3" /> Hard invariants
           </Badge>
@@ -308,82 +333,93 @@ export default function LandingPage() {
             immutable substrate the model is forbidden from editing. Defense in
             depth around the money path.
           </p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        </FadeIn>
+        <Stagger className="grid gap-4 sm:grid-cols-3">
           {invariants.map((inv) => (
-            <Card key={inv.title} className="border-border/60">
-              <CardHeader>
-                <inv.icon className="h-5 w-5 text-accent" />
-                <CardTitle className="mt-3 text-base">{inv.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-sm leading-relaxed">
-                  {inv.body}
-                </CardDescription>
-              </CardContent>
-            </Card>
+            <StaggerItem key={inv.title}>
+              <Card className="h-full border-border/60 transition-shadow hover:shadow-md">
+                <CardHeader>
+                  <inv.icon className="h-5 w-5 text-accent" />
+                  <CardTitle className="mt-3 text-base">{inv.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-sm leading-relaxed">
+                    {inv.body}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       </section>
 
       <section id="stack" className="mx-auto max-w-6xl px-6 py-20">
-        <div className="grid gap-10 lg:grid-cols-[1fr_1.5fr]">
-          <div>
-            <Badge variant="secondary" className="mb-3 text-[10px] uppercase tracking-wider">
-              <GitBranch className="mr-1 h-3 w-3" /> Stack
-            </Badge>
-            <h2 className="text-3xl font-semibold tracking-tight">
-              Boring infrastructure. Sharp tools.
-            </h2>
-            <p className="mt-3 text-muted-foreground">
-              Every dependency earns its keep. Reacher surfaces live
-              TikTok-Shop niches; Nia gives the agent grounded research
-              priors and a corpus of its own past lessons. Vercel Sandbox
-              hosts the agent-browser scout. AI Gateway routes every model
-              call through one BYOK key. Convex is canonical state and the
-              realtime backbone. Stripe Connect is the goal function.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 self-center">
-            {stack.map((tech) => (
-              <Badge
-                key={tech}
-                variant="outline"
-                className="rounded-full border-border/80 bg-background px-3 py-1 text-xs font-medium"
-              >
-                {tech}
+        <FadeIn>
+          <div className="grid gap-10 lg:grid-cols-[1fr_1.5fr]">
+            <div>
+              <Badge variant="secondary" className="mb-3 text-[10px] uppercase tracking-wider">
+                <GitBranch className="mr-1 h-3 w-3" /> Stack
               </Badge>
-            ))}
+              <h2 className="text-3xl font-semibold tracking-tight">
+                Boring infrastructure. Sharp tools.
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                Every dependency earns its keep. Reacher surfaces live
+                TikTok-Shop niches; Nia gives the agent grounded research
+                priors and a corpus of its own past lessons. Vercel Sandbox
+                hosts the agent-browser scout. AI Gateway routes every model
+                call through one BYOK key. Convex is canonical state and the
+                realtime backbone. Stripe Connect is the goal function.
+              </p>
+            </div>
+            <Stagger
+              delayChildren={0.1}
+              staggerChildren={0.025}
+              className="flex flex-wrap gap-2 self-center"
+            >
+              {stack.map((tech) => (
+                <StaggerItem key={tech}>
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-border/80 bg-background px-3 py-1 text-xs font-medium"
+                  >
+                    {tech}
+                  </Badge>
+                </StaggerItem>
+              ))}
+            </Stagger>
           </div>
-        </div>
+        </FadeIn>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
-        <Card className="border-accent/30 bg-gradient-to-br from-accent/5 via-card to-card">
-          <CardHeader className="items-start gap-2 pb-4">
-            <Zap className="h-5 w-5 text-accent" />
-            <CardTitle className="text-2xl tracking-tight sm:text-3xl">
-              Want to see the live numbers?
-            </CardTitle>
-            <CardDescription className="max-w-xl text-base">
-              Your console shows your ledger as it&rsquo;s booked, your
-              experiments mid-flight, the bandit heatmap, and the budget
-              reservation queue. Sign in with Clerk to scope it to your runs.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild size="lg" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
-              <Link href="/console">
-                Open console <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <FadeIn>
+          <Card className="border-accent/30 bg-gradient-to-br from-accent/5 via-card to-card">
+            <CardHeader className="items-start gap-2 pb-4">
+              <Zap className="h-5 w-5 text-accent" />
+              <CardTitle className="text-2xl tracking-tight sm:text-3xl">
+                Want to see the live numbers?
+              </CardTitle>
+              <CardDescription className="max-w-xl text-base">
+                Your console shows your ledger as it&rsquo;s booked, your
+                experiments mid-flight, the bandit heatmap, and the budget
+                reservation queue. Sign in with Clerk to scope it to your runs.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild size="lg" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
+                <Link href="/console">
+                  Open console <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </FadeIn>
       </section>
 
       <footer className="border-t border-border/60">
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-2 px-6 py-8 text-xs text-muted-foreground sm:flex-row sm:items-center">
-          <span>autoresearch · built for the hackathon · 2026</span>
+          <span>autodrop · built for the hackathon · 2026</span>
           <span className="font-mono">terminal_goal := max($_in_stripe)</span>
         </div>
       </footer>

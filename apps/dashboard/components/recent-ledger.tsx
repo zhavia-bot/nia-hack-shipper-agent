@@ -1,9 +1,16 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { api } from "@autoresearch/convex/api";
+import { api } from "@autodrop/convex/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { publicEnv } from "@/lib/env";
 import { fmtRelativeTime, fmtUsd } from "@/lib/format";
+
+const TYPE_CLS: Record<string, string> = {
+  charge: "text-emerald-600 dark:text-emerald-400",
+  refund: "text-rose-600 dark:text-rose-400",
+  ad_spend: "text-amber-700 dark:text-amber-400",
+};
 
 export function RecentLedger() {
   const { DASHBOARD_TOKEN } = publicEnv();
@@ -13,75 +20,42 @@ export function RecentLedger() {
   });
 
   return (
-    <section
-      style={{
-        background: "#fff",
-        border: "1px solid #e8e6e1",
-        borderRadius: 12,
-        padding: "1.25rem 1.5rem",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "0.78rem",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "#777",
-          marginBottom: "0.85rem",
-        }}
-      >
-        Recent ledger events
-      </div>
-      {events === undefined && <p style={{ color: "#999" }}>Loading…</p>}
-      {events && events.length === 0 && (
-        <p style={{ color: "#999" }}>No events yet.</p>
-      )}
-      {events && events.length > 0 && (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {events.map((e) => (
-            <li
-              key={e._id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0,1fr) auto auto",
-                gap: "0.75rem",
-                padding: "0.4rem 0",
-                borderBottom: "1px solid #f1eee9",
-                alignItems: "baseline",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              <span
-                style={{
-                  textTransform: "capitalize",
-                  color: typeColor(e.type),
-                  fontWeight: 600,
-                  fontSize: "0.9rem",
-                }}
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          Recent ledger events
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {events === undefined && (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        )}
+        {events && events.length === 0 && (
+          <p className="text-sm text-muted-foreground">No events yet.</p>
+        )}
+        {events && events.length > 0 && (
+          <ul className="divide-y divide-border/60">
+            {events.map((e) => (
+              <li
+                key={e._id}
+                className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-3 py-2 text-sm tabular-nums"
               >
-                {e.type.replace("_", " ")}
-              </span>
-              <span style={{ fontWeight: 600 }}>{fmtUsd(e.amountUsd)}</span>
-              <span style={{ color: "#888", fontSize: "0.85rem" }}>
-                {fmtRelativeTime(e.timestamp)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+                <span
+                  className={
+                    "font-semibold capitalize " + (TYPE_CLS[e.type] ?? "text-foreground")
+                  }
+                >
+                  {e.type.replace("_", " ")}
+                </span>
+                <span className="font-semibold">{fmtUsd(e.amountUsd)}</span>
+                <span className="text-xs text-muted-foreground">
+                  {fmtRelativeTime(e.timestamp)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
-}
-
-function typeColor(t: string): string {
-  switch (t) {
-    case "charge":
-      return "#0a7d33";
-    case "refund":
-      return "#9e1d1d";
-    case "ad_spend":
-      return "#a86700";
-    default:
-      return "#444";
-  }
 }

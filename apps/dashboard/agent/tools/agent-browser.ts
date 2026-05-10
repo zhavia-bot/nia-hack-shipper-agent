@@ -1,5 +1,5 @@
 import { Sandbox } from "@vercel/sandbox";
-import { createLogger } from "@autoresearch/shared";
+import { createLogger } from "@autodrop/shared";
 
 /**
  * Browser automation via `vercel-labs/agent-browser` running inside a Vercel

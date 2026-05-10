@@ -1,4 +1,4 @@
-import type { Bucket } from "@autoresearch/schemas";
+import type { Bucket } from "@autodrop/schemas";
 import type { PromptTemplate } from "./types.js";
 
 export interface CopyInput {
