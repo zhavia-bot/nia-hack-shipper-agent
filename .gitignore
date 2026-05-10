@@ -37,6 +37,3 @@ Thumbs.db
 # Tensorlake / agent runtime artifacts
 /agent/
 *.snapshot
-
-# Generated Convex artifacts that aren't checked in
-convex/_generated/api.d.ts
