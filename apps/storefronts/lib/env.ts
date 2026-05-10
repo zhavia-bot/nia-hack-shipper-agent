@@ -18,7 +18,10 @@ const Schema = z.object({
   CONVEX_URL: z.string().url(),
   CONVEX_STOREFRONT_TOKEN: z.string().min(20),
 
-  STRIPE_SECRET_KEY: z.string().startsWith("rk_"),
+  // Prefer rk_ (restricted key) — defense-in-depth alongside the action-allowlist
+  // Proxy. Accept sk_ for hackathon-speed deploys; mint a restricted key when
+  // there's a quiet moment.
+  STRIPE_SECRET_KEY: z.string().regex(/^(rk_|sk_)/, "must start with rk_ or sk_"),
   STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_"),
 
   APEX_DOMAIN: z.string().min(3),
