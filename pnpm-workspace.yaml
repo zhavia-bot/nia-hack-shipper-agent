@@ -2,10 +2,11 @@ packages:
   - "apps/*"
   - "packages/*"
   - "convex"
-onlyBuiltDependencies:
-  - "@clerk/shared"
-  - "@nestjs/core"
-  - "@swc/core"
-  - cbor-extract
-  - esbuild
-  - sharp
+# pnpm 11 renamed onlyBuiltDependencies -> allowBuilds (map of name -> bool).
+allowBuilds:
+  "@clerk/shared": true
+  "@nestjs/core": true
+  "@swc/core": true
+  cbor-extract: true
+  esbuild: true
+  sharp: true
