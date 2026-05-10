@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile=false --config.strict-dep-builds=false",
-  "buildCommand": "cd ../.. && pnpm --filter @autodrop/storefronts build",
+  "buildCommand": "./node_modules/.bin/next build --webpack",
   "outputDirectory": ".next"
 }
