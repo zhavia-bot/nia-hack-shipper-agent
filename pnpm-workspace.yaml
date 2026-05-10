@@ -2,10 +2,10 @@ packages:
   - "apps/*"
   - "packages/*"
   - "convex"
-allowBuilds:
-  '@clerk/shared': set this to true or false
-  '@nestjs/core': set this to true or false
-  '@swc/core': set this to true or false
-  cbor-extract: set this to true or false
-  esbuild: set this to true or false
-  sharp: set this to true or false
+onlyBuiltDependencies:
+  - "@clerk/shared"
+  - "@nestjs/core"
+  - "@swc/core"
+  - cbor-extract
+  - esbuild
+  - sharp
